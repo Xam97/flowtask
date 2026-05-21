@@ -1,0 +1,127 @@
+import os
+from pathlib import Path
+from decouple import config, Csv
+
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# ========== SEGURIDAD ==========
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = config('SECRET_KEY')
+
+# SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = config('DEBUG', default=False, cast=bool)
+
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
+
+# ========== APLICACIONES INSTALADAS ==========
+# Organizadas por tipo: Django core, third-party, locales
+INSTALLED_APPS = [
+    # Django core apps
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    
+    # Third-party apps
+    'rest_framework',
+    'channels',
+    
+    # Local apps (modulares)
+    'users',        # Autenticación y perfiles
+    'boards',       # Tableros, listas y tarjetas
+    'notifications', # Sistema de notificaciones
+    'activity',     # Registro de actividad reciente
+    'websockets',   # Comunicación en tiempo real
+]
+
+# ========== MIDDLEWARE ==========
+MIDDLEWARE = [
+    'django.middleware.security.SecurityMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.common.CommonMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',  # Protección CSRF activada
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+]
+
+ROOT_URLCONF = 'core.urls'
+
+# ========== TEMPLATES ==========
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [BASE_DIR / 'templates'],  # Carpeta global de templates
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.debug',
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+            ],
+        },
+    },
+]
+
+WSGI_APPLICATION = 'core.wsgi.application'
+ASGI_APPLICATION = 'core.asgi.application'  # Para Channels
+
+# ========== BASE DE DATOS ==========
+# SQLite para desarrollo, configurable vía .env para producción
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    }
+}
+
+# ========== REDIS PARA CHANNELS ==========
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [config('REDIS_URL', default='redis://localhost:6379')],
+        },
+    },
+}
+
+# ========== AUTENTICACIÓN ==========
+# URLs de redirección
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'dashboard'
+LOGOUT_REDIRECT_URL = 'login'
+
+# ========== ARCHIVOS ESTÁTICOS Y MEDIA ==========
+STATIC_URL = 'static/'
+STATICFILES_DIRS = [BASE_DIR / 'static']
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+MEDIA_URL = 'media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+# ========== ZONA HORARIA ==========
+# Importante: America/Asuncion asegura que todos los timestamps
+# se almacenen y muestren en horario local de Paraguay
+# Sin esto, Django usaría UTC y causaría desfases horarios
+TIME_ZONE = 'America/Asuncion'
+USE_TZ = True  # Usar zona horaria con soporte para horario de verano
+
+# ========== IDIOMA ==========
+LANGUAGE_CODE = 'es-py'
+
+# ========== DEFAULT PRIMARY KEY ==========
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# ========== SEGURIDAD ADICIONAL ==========
+# Protección CSRF para APIs
+CSRF_TRUSTED_ORIGINS = ['http://localhost:8000', 'http://127.0.0.1:8000']
+
+# Configuración de sesiones
+SESSION_COOKIE_AGE = 86400  # 24 horas
+SESSION_COOKIE_SECURE = False  # True en producción con HTTPS
+SESSION_COOKIE_HTTPONLY = True  # Previene acceso JavaScript a cookies
+SESSION_COOKIE_SAMESITE = 'Lax'  # Protección CSRF adicional
