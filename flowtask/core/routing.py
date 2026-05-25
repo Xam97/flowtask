@@ -1,7 +1,7 @@
 # Enrutamiento de WebSockets para Django Channels
 # Define qué consumer maneja cada tipo de conexión
 
-from django.urls import re_path
+from django.urls import re_path, include
 from websockets import consumers
 
 websocket_urlpatterns = [
@@ -20,4 +20,10 @@ websocket_urlpatterns = [
         consumers.NotificationConsumer.as_asgi(),
         name='notification-websocket'
     ),
+
+    # Incluir todos los patrones de la app websockets
+    re_path(r'^', include('websockets.routing')),
 ]
+
+
+
