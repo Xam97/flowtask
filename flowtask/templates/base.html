@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <meta name="description" content="FlowTask - Gestión de tareas estilo Kanban">
+    <title>FlowTask {% block title %}{% endblock %}</title>
+    
+    {# Bootstrap 5.3 CSS - Solo para grid, layout y componentes base #}
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    {# CSS personalizado de FlowTask #}
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/layout.css' %}">
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+    <link rel="stylesheet" href="{% static 'css/auth.css' %}">
+    <link rel="stylesheet" href="{% static 'css/boards.css' %}">
+    
+    {# Google Fonts para tipografía moderna #}
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    {# Font Awesome 6 (gratuito) para iconos #}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    {# NAVBAR PRINCIPAL #}
+    <nav class="navbar navbar-expand-lg sticky-top">
+        <div class="container-fluid">
+            {# Logo y marca #}
+            <a class="navbar-brand" href="{% url 'dashboard' %}">
+                <i class="fas fa-tasks"></i>
+                <span>FlowTask</span>
+            </a>
+            
+            {# Botón toggler para mobile #}
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <i class="fas fa-bars"></i>
+            </button>
+            
+            {# Contenido colapsable del navbar #}
+            <div class="collapse navbar-collapse" id="navbarNav">
+                {# Búsqueda global #}
+                <form class="search-form d-flex mx-auto" role="search">
+                    <input class="form-control" type="search" placeholder="Buscar tareas, tableros..." aria-label="Search">
+                    <button class="btn" type="submit">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </form>
+                
+                {# Menú de usuario #}
+                <ul class="navbar-nav ms-auto">
+                    {# Notificaciones #}
+                    <li class="nav-item">
+                        <a class="nav-link notification-icon" href="#">
+                            <i class="fas fa-bell"></i>
+                            <span class="badge">3</span>
+                        </a>
+                    </li>
+                    
+                    {# Perfil de usuario #}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle user-dropdown" href="#" data-bs-toggle="dropdown">
+                            {% if user.is_authenticated %}
+                                <i class="fas fa-user-circle"></i>
+                                <span>{{ user.username }}</span>
+                            {% endif %}
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-user"></i> Mi Perfil</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-sliders-h"></i> Preferencias</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <form method="POST" action="{% url 'logout' %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="dropdown-item text-danger">
+                                        <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+                                    </button>
+                                </form>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    
+    {# CONTENEDOR PRINCIPAL CON SIDEBAR #}
+    <div class="app-container">
+        {# SIDEBAR - Colapsable en mobile #}
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+            </div>
+            
+            <div class="sidebar-content">
+                {# Menú principal #}
+                <nav class="sidebar-nav">
+                    <a href="{% url 'dashboard' %}" class="nav-item active">
+                        <i class="fas fa-chalkboard"></i>
+                        <span>Tableros</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <i class="fas fa-calendar-alt"></i>
+                        <span>Calendario</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <i class="fas fa-clock"></i>
+                        <span>Actividad</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <i class="fas fa-tag"></i>
+                        <span>Etiquetas</span>
+                    </a>
+                </nav>
+                
+                <hr>
+                
+                {# Tableros recientes #}
+                <div class="recent-boards">
+                    <h6>Recientes</h6>
+                    <div class="board-list">
+                        {# Se llenará dinámicamente con JavaScript #}
+                        <div class="board-item">
+                            <i class="fas fa-columns"></i>
+                            <span>Proyecto FlowTask</span>
+                        </div>
+                    </div>
+                </div>
+                
+                {# Botón crear tablero #}
+                <button class="btn-create-board" data-bs-toggle="modal" data-bs-target="#createBoardModal">
+                    <i class="fas fa-plus"></i>
+                    <span>Crear Tablero</span>
+                </button>
+            </div>
+        </aside>
+        
+        {# CONTENIDO PRINCIPAL #}
+        <main class="main-content">
+            {% if messages %}
+                <div class="messages-container">
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            
+            {% block content %}
+            {% endblock %}
+        </main>
+    </div>
+    
+    {# MODAL: CREAR TABLERO #}
+    <div class="modal fade" id="createBoardModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Crear Nuevo Tablero</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="createBoardForm">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="boardName" class="form-label">Nombre del tablero</label>
+                            <input type="text" class="form-control" id="boardName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="boardDescription" class="form-label">Descripción</label>
+                            <textarea class="form-control" id="boardDescription" rows="3"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="saveBoardBtn">Crear Tablero</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+     {# Scripts #}
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    {# SortableJS para Drag & Drop #}
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    
+    {% load static %}
+    <script src="{% static 'js/helpers.js' %}"></script>
+    <script src="{% static 'js/api.js' %}"></script>
+    <script src="{% static 'js/websocket.js' %}"></script>
+    <script src="{% static 'js/dashboard.js' %}"></script>
+    <script src="{% static 'js/board.js' %}"></script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
