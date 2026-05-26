@@ -1,0 +1,210 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ board.name }} - FlowTask{% endblock %}
+
+{% block content %}
+<div class="board-header mb-4">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div>
+            <h1 class="h3 mb-1">
+                <i class="fas fa-chalkboard me-2"></i>
+                {{ board.name }}
+                <a href="{% url 'edit_board' board.id %}" class="btn btn-sm btn-link text-secondary">
+                    <i class="fas fa-edit"></i>
+                </a>
+            </h1>
+            {% if board.description %}
+                <p class="text-muted mb-0">{{ board.description }}</p>
+            {% endif %}
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addMemberModal">
+                <i class="fas fa-user-plus"></i> Invitar
+            </button>
+            <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#addListModal">
+                <i class="fas fa-plus"></i> Nueva Lista
+            </button>
+        </div>
+    </div>
+    
+    <div class="board-members mt-3">
+        <small class="text-muted">Miembros:</small>
+        <div class="d-flex flex-wrap gap-2 mt-1">
+            <span class="badge bg-primary">
+                <i class="fas fa-crown me-1"></i>
+                {{ board.owner.username }}
+            </span>
+            {% for member in board.members.all %}
+                <span class="badge bg-secondary">
+                    <i class="fas fa-user me-1"></i>
+                    {{ member.username }}
+                </span>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="kanban-container" data-board-id="{{ board.id }}">
+    {% for list in lists %}
+    <div class="kanban-list" data-list-id="{{ list.id }}">
+        <div class="list-header">
+            <div>
+                <span class="list-title">{{ list.name }}</span>
+                <span class="list-badge ms-2">{{ list.cards.count }}</span>
+            </div>
+            <div class="list-actions">
+                <a href="{% url 'edit_list' list.id %}" class="btn btn-sm btn-link text-secondary">
+                    <i class="fas fa-edit fa-sm"></i>
+                </a>
+                <form method="POST" action="{% url 'delete_list' list.id %}" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-link text-danger" onclick="return confirm('¿Eliminar esta lista y todas sus tareas?');">
+                        <i class="fas fa-trash-alt fa-sm"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <div class="cards-container" data-list-id="{{ list.id }}">
+            {% for card in list.cards.all %}
+            <div class="card-item" data-card-id="{{ card.id }}" data-position="{{ card.position }}">
+                <div class="card-title">
+                    <span>{{ card.title }}</span>
+                    <div class="card-actions">
+                        <a href="{% url 'edit_card' card.id %}" class="btn btn-sm btn-link text-secondary">
+                            <i class="fas fa-edit fa-xs"></i>
+                        </a>
+                        <form method="POST" action="{% url 'delete_card' card.id %}" style="display: inline;">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-link text-danger" onclick="return confirm('¿Eliminar esta tarea?');">
+                                <i class="fas fa-trash-alt fa-xs"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                {% if card.description %}
+                    <div class="card-description">{{ card.description|truncatechars:60 }}</div>
+                {% endif %}
+                <div class="card-footer">
+                    <div>
+                        <span class="priority-badge priority-{{ card.priority }}"></span>
+                        <small>{{ card.get_priority_display }}</small>
+                    </div>
+                    <small>
+                        <i class="fas fa-user me-1"></i>
+                        {{ card.created_by.username }}
+                    </small>
+                </div>
+            </div>
+            {% empty %}
+            <div class="empty-cards">No hay tareas</div>
+            {% endfor %}
+        </div>
+        
+        <button class="add-card-btn" data-bs-toggle="modal" data-bs-target="#addCardModal{{ list.id }}">
+            <i class="fas fa-plus"></i> Añadir tarea
+        </button>
+    </div>
+    
+    <!-- Modal para crear tarjeta en esta lista -->
+    <div class="modal fade" id="addCardModal{{ list.id }}" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="POST" action="{% url 'create_card' list.id %}">
+                    {% csrf_token %}
+                    <div class="modal-header">
+                        <h5 class="modal-title">Nueva Tarea en "{{ list.name }}"</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Título</label>
+                            <input type="text" name="title" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Descripción</label>
+                            <textarea name="description" class="form-control" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Prioridad</label>
+                            <select name="priority" class="form-select">
+                                <option value="low">Baja</option>
+                                <option value="medium" selected>Media</option>
+                                <option value="high">Alta</option>
+                                <option value="urgent">Urgente</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Asignar a</label>
+                            <select name="assigned_to" class="form-select">
+                                <option value="">No asignar</option>
+                                {% for member in members %}
+                                    <option value="{{ member.id }}">{{ member.username }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Crear Tarea</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Modal: Agregar Lista -->
+<div class="modal fade" id="addListModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{% url 'create_list' board.id %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Nueva Lista</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="text" name="name" class="form-control" placeholder="Nombre de la lista" required>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Crear</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Agregar Miembro -->
+<div class="modal fade" id="addMemberModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{% url 'add_member' board.id %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Invitar Miembro</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <label class="form-label">Nombre de usuario</label>
+                    <input type="text" name="username" class="form-control" placeholder="username" required>
+                    <label class="form-label mt-2">Rol</label>
+                    <select name="role" class="form-select">
+                        <option value="member">Miembro</option>
+                        <option value="viewer">Espectador</option>
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Invitar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="{% static 'js/dragdrop.js' %}"></script>
+{% endblock %}

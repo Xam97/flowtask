@@ -1,3 +1,545 @@
-from django.shortcuts import render
+# Vistas completas para gestión de tableros, listas y tarjetas
 
-# Create your views here.
+from .forms import BoardForm, ListForm, CardForm
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_protect
+from django.db import models
+from .models import Board, List, Card, Membership
+from django.contrib.auth.models import User
+
+
+# ========== VISTAS DE TABLEROS ==========
+
+@login_required
+def board_list(request):
+    """
+    Lista todos los tableros del usuario (propios + colaboraciones)
+    """
+    owned_boards = request.user.owned_boards.filter(is_archived=False)
+    member_boards = request.user.boards.filter(is_archived=False)
+    
+    context = {
+        'owned_boards': owned_boards,
+        'member_boards': member_boards,
+    }
+    return render(request, 'dashboard.html', context)
+
+
+@login_required
+def board_detail(request, pk):
+    """
+    Vista detallada de un tablero (vista Kanban)
+    """
+    board = get_object_or_404(Board, pk=pk, is_archived=False)
+    
+    # Verificar permisos
+    if board.owner != request.user and not board.members.filter(id=request.user.id).exists():
+        messages.error(request, 'No tienes permiso para ver este tablero')
+        return redirect('dashboard')
+    
+    # Obtener listas ordenadas por posición
+    lists = board.lists.all().prefetch_related('cards')
+    
+    # Obtener miembros
+    members = list(board.members.all()) + [board.owner]
+    
+    context = {
+        'board': board,
+        'lists': lists,
+        'members': members,
+    }
+    return render(request, 'boards/board_detail.html', context)
+
+
+@csrf_protect
+@login_required
+@require_http_methods(["POST"])
+def create_board(request):
+    """
+    Crea un nuevo tablero
+    """
+    name = request.POST.get('name') or request.POST.get('board_name')
+    description = request.POST.get('description', '')
+    
+    if not name or len(name) < 3:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'error': 'El nombre debe tener al menos 3 caracteres'})
+        messages.error(request, 'El nombre debe tener al menos 3 caracteres')
+        return redirect('dashboard')
+    
+    board = Board.objects.create(
+        name=name,
+        description=description,
+        owner=request.user
+    )
+    
+    # Crear listas por defecto
+    default_lists = ['Pendiente', 'En proceso', 'Terminado']
+    for position, list_name in enumerate(default_lists):
+        List.objects.create(
+            name=list_name,
+            board=board,
+            position=(position + 1) * 10
+        )
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({
+            'success': True,
+            'board': {
+                'id': board.id,
+                'name': board.name,
+                'description': board.description,
+                'url': f'/boards/{board.id}/'
+            }
+        })
+    
+    messages.success(request, f'Tablero "{name}" creado exitosamente')
+    return redirect('board_detail', pk=board.id)
+
+
+@login_required
+@require_http_methods(["POST"])
+def delete_board(request, pk):
+    """
+    Elimina (archiva) un tablero
+    """
+    board = get_object_or_404(Board, pk=pk)
+    
+    if board.owner != request.user:
+        messages.error(request, 'Solo el propietario puede eliminar el tablero')
+        return redirect('board_detail', pk=pk)
+    
+    board.is_archived = True
+    board.save()
+    messages.success(request, f'Tablero "{board.name}" archivado')
+    return redirect('dashboard')
+
+
+# ========== VISTAS DE LISTAS ==========
+
+@csrf_protect
+@login_required
+@require_http_methods(["POST"])
+def create_list(request, board_id):
+    """
+    Crea una nueva lista dentro de un tablero
+    """
+    board = get_object_or_404(Board, pk=board_id)
+    
+    if board.owner != request.user and not board.members.filter(id=request.user.id).exists():
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'error': 'Sin permiso'}, status=403)
+        messages.error(request, 'Sin permiso')
+        return redirect('board_detail', pk=board_id)
+    
+    name = request.POST.get('name')
+    if not name:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'error': 'Nombre requerido'})
+        messages.error(request, 'Nombre requerido')
+        return redirect('board_detail', pk=board_id)
+    
+    max_position = board.lists.aggregate(models.Max('position'))['position__max'] or 0
+    
+    list_obj = List.objects.create(
+        name=name,
+        board=board,
+        position=max_position + 10
+    )
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({
+            'success': True,
+            'list': {
+                'id': list_obj.id,
+                'name': list_obj.name,
+                'position': float(list_obj.position)
+            }
+        })
+    
+    return redirect('board_detail', pk=board_id)
+
+
+@login_required
+@require_http_methods(["POST"])
+def delete_list(request, list_id):
+    """
+    Elimina una lista
+    """
+    list_obj = get_object_or_404(List, pk=list_id)
+    board_id = list_obj.board.id
+    
+    if list_obj.board.owner != request.user:
+        messages.error(request, 'Sin permiso para eliminar esta lista')
+        return redirect('board_detail', pk=board_id)
+    
+    list_obj.delete()
+    messages.success(request, 'Lista eliminada')
+    return redirect('board_detail', pk=board_id)
+
+
+# ========== VISTAS DE TARJETAS ==========
+
+@csrf_protect
+@login_required
+@require_http_methods(["POST"])
+def create_card(request, list_id):
+    """
+    Crea una nueva tarjeta dentro de una lista
+    """
+    list_obj = get_object_or_404(List, pk=list_id)
+    board = list_obj.board
+    
+    if board.owner != request.user and not board.members.filter(id=request.user.id).exists():
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'error': 'Sin permiso'}, status=403)
+        messages.error(request, 'Sin permiso')
+        return redirect('board_detail', pk=board.id)
+    
+    title = request.POST.get('title')
+    description = request.POST.get('description', '')
+    assigned_to_id = request.POST.get('assigned_to')
+    
+    if not title:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'error': 'Título requerido'})
+        messages.error(request, 'El título es requerido')
+        return redirect('board_detail', pk=board.id)
+    
+    max_position = list_obj.cards.aggregate(models.Max('position'))['position__max'] or 0
+    
+    card = Card.objects.create(
+        title=title,
+        description=description,
+        list=list_obj,
+        created_by=request.user,
+        position=max_position + 10
+    )
+    
+    if assigned_to_id:
+        try:
+            assigned_user = User.objects.get(id=assigned_to_id)
+            card.assigned_to = assigned_user
+            card.save()
+        except User.DoesNotExist:
+            pass
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({
+            'success': True,
+            'card': {
+                'id': card.id,
+                'title': card.title,
+                'description': card.description,
+                'created_by': card.created_by.username,
+                'assigned_to': card.assigned_to.username if card.assigned_to else None,
+                'position': float(card.position)
+            }
+        })
+    
+    messages.success(request, f'Tarea "{title}" creada')
+    return redirect('board_detail', pk=board.id)
+
+
+@login_required
+@require_http_methods(["POST"])
+def update_card_position(request):
+    """
+    Actualiza la posición de una tarjeta (para Drag & Drop)
+    """
+    import json
+    data = json.loads(request.body)
+    
+    card_id = data.get('card_id')
+    new_list_id = data.get('list_id')
+    new_position = data.get('position')
+    
+    card = get_object_or_404(Card, pk=card_id)
+    
+    if card.list.board.owner != request.user and not card.list.board.members.filter(id=request.user.id).exists():
+        return JsonResponse({'success': False, 'error': 'Sin permiso'}, status=403)
+    
+    if new_list_id and new_list_id != card.list.id:
+        new_list = get_object_or_404(List, pk=new_list_id)
+        card.list = new_list
+    
+    if new_position is not None:
+        card.position = float(new_position)
+    
+    card.save()
+    
+    return JsonResponse({'success': True})
+
+
+@login_required
+@require_http_methods(["POST"])
+def delete_card(request, card_id):
+    """
+    Elimina una tarjeta
+    """
+    card = get_object_or_404(Card, pk=card_id)
+    board_id = card.list.board.id
+    
+    if card.list.board.owner != request.user:
+        messages.error(request, 'Sin permiso para eliminar esta tarea')
+        return redirect('board_detail', pk=board_id)
+    
+    card.delete()
+    messages.success(request, 'Tarea eliminada')
+    return redirect('board_detail', pk=board_id)
+
+
+# ========== VISTAS DE MIEMBROS ==========
+
+@login_required
+@require_http_methods(["POST"])
+def add_member(request, board_id):
+    """
+    Agrega un miembro al tablero
+    """
+    board = get_object_or_404(Board, pk=board_id)
+    
+    if board.owner != request.user:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'error': 'Solo el propietario puede agregar miembros'}, status=403)
+        messages.error(request, 'Sin permiso')
+        return redirect('board_detail', pk=board_id)
+    
+    username = request.POST.get('username')
+    role = request.POST.get('role', 'member')
+    
+    try:
+        user = User.objects.get(username=username)
+        
+        if Membership.objects.filter(user=user, board=board).exists():
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'error': 'El usuario ya es miembro'})
+            messages.warning(request, f'{username} ya es miembro del tablero')
+            return redirect('board_detail', pk=board_id)
+        
+        Membership.objects.create(user=user, board=board, role=role)
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': True,
+                'member': {
+                    'id': user.id,
+                    'username': user.username,
+                    'role': role
+                }
+            })
+        
+        messages.success(request, f'{username} agregado al tablero')
+        
+    except User.DoesNotExist:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'error': 'Usuario no encontrado'})
+        messages.error(request, f'Usuario "{username}" no encontrado')
+    
+    return redirect('board_detail', pk=board_id)
+
+
+@login_required
+@require_http_methods(["POST"])
+def remove_member(request, membership_id):
+    """
+    Elimina un miembro del tablero
+    """
+    membership = get_object_or_404(Membership, pk=membership_id)
+    board_id = membership.board.id
+    
+    if membership.board.owner != request.user:
+        messages.error(request, 'Sin permiso')
+        return redirect('board_detail', pk=board_id)
+    
+    username = membership.user.username
+    membership.delete()
+    messages.success(request, f'{username} removido del tablero')
+    return redirect('board_detail', pk=board_id)
+
+# ========== EDICIÓN DE TABLEROS ==========
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def edit_board(request, pk):
+    """
+    Editar un tablero existente
+    """
+    board = get_object_or_404(Board, pk=pk, is_archived=False)
+    
+    # Verificar permisos: solo owner o admin pueden editar
+    if board.owner != request.user:
+        membership = Membership.objects.filter(user=request.user, board=board).first()
+        if not membership or membership.role != 'admin':
+            messages.error(request, 'No tienes permiso para editar este tablero')
+            return redirect('board_detail', pk=pk)
+    
+    if request.method == 'POST':
+        form = BoardForm(request.POST, instance=board)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Tablero "{board.name}" actualizado')
+            return redirect('board_detail', pk=pk)
+    else:
+        form = BoardForm(instance=board)
+    
+    return render(request, 'boards/edit_board.html', {'form': form, 'board': board})
+
+
+# ========== ELIMINACIÓN DEFINITIVA ==========
+
+@login_required
+@require_http_methods(["POST"])
+def delete_board_permanent(request, pk):
+    """
+    Eliminar tablero permanentemente (no solo archivar)
+    """
+    board = get_object_or_404(Board, pk=pk)
+    
+    # Solo el owner puede eliminar permanentemente
+    if board.owner != request.user:
+        messages.error(request, 'Solo el propietario puede eliminar el tablero')
+        return redirect('board_detail', pk=pk)
+    
+    board_name = board.name
+    board.delete()
+    messages.success(request, f'Tablero "{board_name}" eliminado permanentemente')
+    return redirect('dashboard')
+
+
+# ========== EDICIÓN DE LISTAS ==========
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def edit_list(request, list_id):
+    """
+    Editar una lista existente
+    """
+    list_obj = get_object_or_404(List, pk=list_id)
+    board = list_obj.board
+    
+    # Verificar permisos
+    if board.owner != request.user:
+        membership = Membership.objects.filter(user=request.user, board=board).first()
+        if not membership or membership.role != 'admin':
+            messages.error(request, 'Sin permiso')
+            return redirect('board_detail', pk=board.id)
+    
+    if request.method == 'POST':
+        form = ListForm(request.POST, instance=list_obj)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Lista actualizada')
+            return redirect('board_detail', pk=board.id)
+    else:
+        form = ListForm(instance=list_obj)
+    
+    return render(request, 'boards/edit_list.html', {'form': form, 'list': list_obj, 'board': board})
+
+
+# ========== EDICIÓN DE TARJETAS ==========
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def edit_card(request, card_id):
+    """
+    Editar una tarjeta existente
+    """
+    card = get_object_or_404(Card, pk=card_id)
+    board = card.list.board
+    
+    # Verificar permisos
+    if board.owner != request.user and not board.members.filter(id=request.user.id).exists():
+        messages.error(request, 'Sin permiso')
+        return redirect('board_detail', pk=board.id)
+    
+    # Obtener miembros para el select de asignación
+    members = list(board.members.all()) + [board.owner]
+    
+    if request.method == 'POST':
+        form = CardForm(request.POST, instance=card)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Tarea "{card.title}" actualizada')
+            return redirect('board_detail', pk=board.id)
+    else:
+        form = CardForm(instance=card)
+        # Personalizar el select de assigned_to con los miembros
+        form.fields['assigned_to'].choices = [('', 'No asignar')] + [(u.id, u.username) for u in members]
+    
+    return render(request, 'boards/edit_card.html', {
+        'form': form,
+        'card': card,
+        'board': board,
+        'members': members
+    })
+
+
+# ========== ACTUALIZAR POSICIÓN (AJAX) ==========
+
+@login_required
+@require_http_methods(["POST"])
+def update_list_position(request):
+    """
+    Actualiza la posición de una lista (para ordenamiento)
+    """
+    import json
+    data = json.loads(request.body)
+    
+    list_id = data.get('list_id')
+    new_position = data.get('position')
+    
+    list_obj = get_object_or_404(List, pk=list_id)
+    
+    # Verificar permisos
+    if list_obj.board.owner != request.user:
+        membership = Membership.objects.filter(user=request.user, board=list_obj.board).first()
+        if not membership or membership.role != 'admin':
+            return JsonResponse({'success': False, 'error': 'Sin permiso'}, status=403)
+    
+    if new_position is not None:
+        list_obj.position = float(new_position)
+        list_obj.save()
+    
+    return JsonResponse({'success': True})
+
+
+# ========== OPTIMIZACIÓN DE VISTA DETAIL ==========
+# MODIFICAR board_detail para usar select_related y prefetch_related
+
+@login_required
+def board_detail(request, pk):
+    """
+    Vista detallada de un tablero (vista Kanban) - VERSIÓN OPTIMIZADA
+    """
+    # Optimización con select_related y prefetch_related
+    board = get_object_or_404(
+        Board.objects.select_related('owner'),
+        pk=pk,
+        is_archived=False
+    )
+    
+    # Verificar permisos
+    if board.owner != request.user and not board.members.filter(id=request.user.id).exists():
+        messages.error(request, 'No tienes permiso para ver este tablero')
+        return redirect('dashboard')
+    
+    # Optimización: prefetch lists y sus cards con select_related
+    lists = board.lists.all().prefetch_related(
+        'cards__assigned_to',
+        'cards__created_by'
+    ).order_by('position')
+    
+    # Obtener miembros del tablero para asignaciones
+    members = list(board.members.select_related().all()) + [board.owner]
+    
+    context = {
+        'board': board,
+        'lists': lists,
+        'members': members,
+    }
+    return render(request, 'boards/board_detail.html', context)
