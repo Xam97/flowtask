@@ -1,5 +1,8 @@
+<<<<<<< HEAD
 {# Dashboard principal - Muestra todos los tableros del usuario #}
 
+=======
+>>>>>>> origin/camilarodas
 {% extends 'base.html' %}
 {% load static %}
 
@@ -37,6 +40,7 @@
                     </div>
                 </div>
                 <div class="board-card-footer">
+<<<<<<< HEAD
                     <a href="#" class="btn btn-sm btn-outline-primary">Abrir Tablero</a>
                     <button class="btn btn-sm btn-icon"><i class="fas fa-ellipsis-v"></i></button>
                 </div>
@@ -52,6 +56,23 @@
             {% endfor %}
         </div>
     </div>
+=======
+                    <a href="{% url 'board_detail' board.id %}" class="btn btn-sm btn-outline-primary">Abrir Tablero</a>
+                    <button class="btn btn-sm btn-icon"><i class="fas fa-ellipsis-v"></i></button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-chalkboard"></i>
+        <p>No tienes tableros aún.</p>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createBoardModal">
+            Crear tu primer tablero
+        </button>
+    </div>
+>>>>>>> origin/camilarodas
     {% endif %}
     
     {# Tableros donde soy miembro #}
@@ -73,7 +94,11 @@
                     </div>
                 </div>
                 <div class="board-card-footer">
+<<<<<<< HEAD
                     <a href="#" class="btn btn-sm btn-outline-primary">Abrir Tablero</a>
+=======
+                    <a href="{% url 'board_detail' board.id %}" class="btn btn-sm btn-outline-primary">Abrir Tablero</a>
+>>>>>>> origin/camilarodas
                     <button class="btn btn-sm btn-icon"><i class="fas fa-ellipsis-v"></i></button>
                 </div>
             </div>
@@ -82,4 +107,36 @@
     </div>
     {% endif %}
 </div>
+<<<<<<< HEAD
+=======
+
+<!-- MODAL: CREAR TABLERO -->
+<div class="modal fade" id="createBoardModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Crear Nuevo Tablero</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{% url 'create_board' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="boardName" class="form-label">Nombre del tablero</label>
+                        <input type="text" name="name" id="boardName" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="boardDescription" class="form-label">Descripción (opcional)</label>
+                        <textarea name="description" id="boardDescription" class="form-control" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Crear Tablero</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+>>>>>>> origin/camilarodas
 {% endblock %}

@@ -87,13 +87,13 @@ class Membership(models.Model):
 # ========== LIST (LISTA DENTRO DEL TABLERO) ==========
 class List(models.Model):
     """
-    Lista Kanban dentro de un tablero (Ej: To Do, In Progress, Done).
+    Lista Kanban dentro de un tablero (Ej: Pendiente, En proceso, Terminado).
     Utiliza DecimalField para ordenamiento preciso entre listas.
     """
     name = models.CharField(
         max_length=100,
         validators=[MinLengthValidator(1)],
-        help_text="Nombre de la lista (ej: To Do, In Progress)"
+        help_text="Nombre de la lista (ej: Pendiente, En proceso)"
     )
     board = models.ForeignKey(
         Board,

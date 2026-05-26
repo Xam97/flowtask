@@ -1,13 +1,19 @@
+<<<<<<< HEAD
 // static/js/helpers.js
 // Utilidades JavaScript reutilizables para FlowTask
 // Módulo con funciones helper para CSRF, fetch, etc.
 
+=======
+>>>>>>> origin/camilarodas
 const FlowTaskHelpers = (function() {
     'use strict';
     
     /**
      * Obtiene el token CSRF de la cookie
+<<<<<<< HEAD
      * Necesario para todas las peticiones fetch POST/PUT/DELETE
+=======
+>>>>>>> origin/camilarodas
      */
     function getCSRFToken() {
         const cookieValue = document.cookie
@@ -19,7 +25,10 @@ const FlowTaskHelpers = (function() {
     
     /**
      * Wrapper para fetch con configuración automática
+<<<<<<< HEAD
      * Incluye headers, CSRF, y manejo de errores
+=======
+>>>>>>> origin/camilarodas
      */
     async function apiFetch(url, options = {}) {
         const defaultOptions = {
@@ -59,11 +68,15 @@ const FlowTaskHelpers = (function() {
      * Muestra un toast notification
      */
     function showToast(message, type = 'info') {
+<<<<<<< HEAD
         // Crear contenedor de toasts si no existe
+=======
+>>>>>>> origin/camilarodas
         let container = document.querySelector('.toast-container');
         if (!container) {
             container = document.createElement('div');
             container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+<<<<<<< HEAD
             document.body.appendChild(container);
         }
         
@@ -75,6 +88,21 @@ const FlowTaskHelpers = (function() {
                     <i class="fas fa-bell me-2"></i>
                     <strong class="me-auto">FlowTask</strong>
                     <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+=======
+            container.style.zIndex = '9999';
+            document.body.appendChild(container);
+        }
+        
+        const toastId = 'toast-' + Date.now();
+        const bgColor = type === 'error' ? 'bg-danger' : type === 'success' ? 'bg-success' : 'bg-primary';
+        
+        const toastHtml = `
+            <div id="${toastId}" class="toast" role="alert" data-bs-autohide="true" data-bs-delay="3000">
+                <div class="toast-header ${bgColor} text-white">
+                    <i class="fas fa-bell me-2"></i>
+                    <strong class="me-auto">FlowTask</strong>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+>>>>>>> origin/camilarodas
                 </div>
                 <div class="toast-body">
                     ${message}
@@ -87,7 +115,10 @@ const FlowTaskHelpers = (function() {
         const toast = new bootstrap.Toast(toastElement);
         toast.show();
         
+<<<<<<< HEAD
         // Remover del DOM después de ocultar
+=======
+>>>>>>> origin/camilarodas
         toastElement.addEventListener('hidden.bs.toast', () => {
             toastElement.remove();
         });
@@ -108,7 +139,11 @@ const FlowTaskHelpers = (function() {
     }
     
     /**
+<<<<<<< HEAD
      * Debounce para optimizar eventos frecuentes (ej: búsqueda)
+=======
+     * Debounce para optimizar eventos frecuentes
+>>>>>>> origin/camilarodas
      */
     function debounce(func, wait) {
         let timeout;
@@ -122,15 +157,70 @@ const FlowTaskHelpers = (function() {
         };
     }
     
+<<<<<<< HEAD
     // API pública
+=======
+    /**
+     * Escapa HTML para prevenir XSS
+     */
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+>>>>>>> origin/camilarodas
     return {
         getCSRFToken,
         apiFetch,
         showToast,
         formatDate,
         debounce,
+<<<<<<< HEAD
     };
 })();
 
 // Exponer globalmente
 window.FlowTaskHelpers = FlowTaskHelpers;
+=======
+        escapeHtml
+    };
+})();
+
+window.FlowTaskHelpers = FlowTaskHelpers;
+
+    /**
+     * Muestra un loader/spinner
+     */
+    function showLoader(containerId) {
+        const container = document.getElementById(containerId);
+        if (container) {
+            const loader = document.createElement('div');
+            loader.className = 'loader-spinner';
+            loader.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>';
+            container.appendChild(loader);
+        }
+    }
+    
+    /**
+     * Oculta el loader
+     */
+    function hideLoader(containerId) {
+        const container = document.getElementById(containerId);
+        if (container) {
+            const loader = container.querySelector('.loader-spinner');
+            if (loader) loader.remove();
+        }
+    }
+    
+    /**
+     * Confirmación con modal personalizada
+     */
+    function confirmAction(message, onConfirm, onCancel) {
+        const confirmed = confirm(message);
+        if (confirmed && onConfirm) onConfirm();
+        if (!confirmed && onCancel) onCancel();
+        return confirmed;
+    }
+>>>>>>> origin/camilarodas

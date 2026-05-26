@@ -1,6 +1,9 @@
+<<<<<<< HEAD
 // static/js/dashboard.js
 // Funcionalidades del dashboard y gestión de tableros
 
+=======
+>>>>>>> origin/camilarodas
 (function() {
     'use strict';
     
@@ -11,6 +14,7 @@
         initCreateBoardModal();
     });
     
+<<<<<<< HEAD
     /**
      * Inicializa el dashboard
      */
@@ -27,6 +31,13 @@
     /**
      * Inicializa la sidebar responsive
      */
+=======
+    function initDashboard() {
+        console.log('Dashboard inicializado');
+        setupBoardCards();
+    }
+    
+>>>>>>> origin/camilarodas
     function initSidebar() {
         const sidebar = document.getElementById('sidebar');
         const toggleBtn = document.getElementById('sidebarToggle');
@@ -34,13 +45,17 @@
         if (toggleBtn) {
             toggleBtn.addEventListener('click', () => {
                 sidebar.classList.toggle('collapsed');
+<<<<<<< HEAD
                 
                 // Guardar preferencia en localStorage
+=======
+>>>>>>> origin/camilarodas
                 const isCollapsed = sidebar.classList.contains('collapsed');
                 localStorage.setItem('sidebarCollapsed', isCollapsed);
             });
         }
         
+<<<<<<< HEAD
         // Restaurar estado colapsado
         const savedState = localStorage.getItem('sidebarCollapsed');
         if (savedState === 'true') {
@@ -53,10 +68,23 @@
                 if (!sidebar.contains(e.target) && !e.target.closest('.navbar-toggler')) {
                     sidebar.classList.remove('mobile-open');
                 }
+=======
+        const savedState = localStorage.getItem('sidebarCollapsed');
+        if (savedState === 'true' && sidebar) {
+            sidebar.classList.add('collapsed');
+        }
+        
+        // Mobile sidebar
+        const navbarToggler = document.querySelector('.navbar-toggler');
+        if (navbarToggler && sidebar) {
+            navbarToggler.addEventListener('click', () => {
+                sidebar.classList.toggle('mobile-open');
+>>>>>>> origin/camilarodas
             });
         }
     }
     
+<<<<<<< HEAD
     /**
      * Carga los tableros recientes en la sidebar
      */
@@ -110,11 +138,24 @@
                 const boardId = card.dataset.boardId;
                 if (boardId) {
                     openBoard(boardId);
+=======
+    function setupBoardCards() {
+        const boardCards = document.querySelectorAll('.board-card');
+        boardCards.forEach(card => {
+            card.addEventListener('click', (e) => {
+                if (e.target.closest('.btn') || e.target.closest('button')) {
+                    return;
+                }
+                const boardLink = card.querySelector('a[href*="/boards/"]');
+                if (boardLink) {
+                    window.location.href = boardLink.getAttribute('href');
+>>>>>>> origin/camilarodas
                 }
             });
         });
     }
     
+<<<<<<< HEAD
     /**
      * Abre un tablero
      */
@@ -192,5 +233,10 @@
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+=======
+    function initCreateBoardModal() {
+        // El formulario ya envía con POST normal, no necesita JavaScript adicional
+        console.log('Modal de creación de tablero listo');
+>>>>>>> origin/camilarodas
     }
 })();

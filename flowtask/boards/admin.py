@@ -1,9 +1,15 @@
+<<<<<<< HEAD
 # Configuración del panel administrativo
 # Optimizado para gestión de tableros, listas y tarjetas
 
 from django.contrib import admin
 from .models import Board, Membership, List, Card
 
+=======
+from django.contrib import admin
+from .models import Board, Membership, List, Card
+
+>>>>>>> origin/camilarodas
 # ========== BOARD ADMIN ==========
 @admin.register(Board)
 class BoardAdmin(admin.ModelAdmin):
@@ -11,7 +17,11 @@ class BoardAdmin(admin.ModelAdmin):
     list_filter = ['is_archived', 'created_at', 'owner']
     search_fields = ['name', 'description', 'owner__username']
     readonly_fields = ['created_at', 'updated_at']
+<<<<<<< HEAD
     filter_horizontal = ['members']  # Mejor UI para ManyToMany
+=======
+    # filter_horizontal = ['members']  # Mejor UI para ManyToMany
+>>>>>>> origin/camilarodas
     
     def get_member_count(self, obj):
         return obj.members.count()

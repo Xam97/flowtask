@@ -1,0 +1,178 @@
+/* Estilos específicos para la vista de tableros Kanban */
+
+/* ========== VISTA KANBAN ========== */
+.kanban-container {
+    display: flex;
+    gap: 1rem;
+    overflow-x: auto;
+    padding-bottom: 1rem;
+    min-height: calc(100vh - 200px);
+}
+
+.kanban-list {
+    min-width: 300px;
+    width: 300px;
+    background: #f1f2f4;
+    border-radius: 12px;
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    transition: all 0.2s;
+}
+
+.kanban-list:hover {
+    background: #e9eaec;
+}
+
+.list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.list-title {
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+}
+
+.list-title:hover {
+    color: #0d6efd;
+}
+
+.list-badge {
+    background: #e4e6ea;
+    padding: 0.125rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.list-actions {
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.kanban-list:hover .list-actions {
+    opacity: 1;
+}
+
+.cards-container {
+    flex: 1;
+    min-height: 100px;
+    max-height: calc(100vh - 250px);
+    overflow-y: auto;
+}
+
+/* ========== TARJETAS ========== */
+.card-item {
+    background: white;
+    border-radius: 8px;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    cursor: grab;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+}
+
+.card-item:active {
+    cursor: grabbing;
+}
+
+.card-item:hover {
+    background: #f8f9fa;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border-color: #dee2e6;
+}
+
+.card-title {
+    font-weight: 500;
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+    word-break: break-word;
+}
+
+.card-description {
+    font-size: 0.75rem;
+    color: #6c757d;
+    margin-bottom: 0.5rem;
+    word-break: break-word;
+}
+
+.card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.7rem;
+    color: #6c757d;
+}
+
+/* ========== PRIORIDADES ========== */
+.priority-badge {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 0.25rem;
+}
+
+.priority-high { background: #dc3545; }
+.priority-medium { background: #ffc107; }
+.priority-low { background: #28a745; }
+.priority-urgent { background: #fd7e14; }
+
+/* ========== BOTONES ========== */
+.add-card-btn {
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    padding: 0.5rem;
+    color: #6c757d;
+    border-radius: 8px;
+    margin-top: 0.5rem;
+    transition: all 0.2s;
+}
+
+.add-card-btn:hover {
+    background: #e9ecef;
+    color: #0d6efd;
+}
+
+
+/* ========== RESPONSIVE ========== */
+@media (max-width: 768px) {
+    .kanban-list {
+        min-width: 280px;
+        width: 280px;
+    }
+    
+    .board-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+/* ========== DRAG & DROP ========== */
+.sortable-drag {
+    opacity: 0.5;
+    background: #e9ecef !important;
+    cursor: grabbing !important;
+}
+
+.sortable-ghost {
+    opacity: 0.3;
+    background: #dee2e6 !important;
+}
+
+.card-item {
+    cursor: grab;
+    transition: all 0.2s;
+}
+
+.card-item:active {
+    cursor: grabbing;
+}
