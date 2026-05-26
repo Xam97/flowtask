@@ -1,28 +1,6 @@
 from django.urls import path
-from . import views
 
+# Reemplazá o agregá tus vistas acá cuando las tengas
 urlpatterns = [
-    # Tableros
-    path('', views.board_list, name='board_list'),
-    path('create/', views.create_board, name='create_board'),
-    path('<int:pk>/', views.board_detail, name='board_detail'),
-    path('<int:pk>/edit/', views.edit_board, name='edit_board'),  
-    path('<int:pk>/delete/', views.delete_board, name='delete_board'),
-    path('<int:pk>/delete-permanent/', views.delete_board_permanent, name='delete_board_permanent'),
-    
-    # Listas
-    path('<int:board_id>/lists/create/', views.create_list, name='create_list'),
-    path('lists/<int:list_id>/edit/', views.edit_list, name='edit_list'),
-    path('lists/<int:list_id>/delete/', views.delete_list, name='delete_list'),
-    path('lists/update-position/', views.update_list_position, name='update_list_position'),
-    
-    # Tarjetas
-    path('lists/<int:list_id>/cards/create/', views.create_card, name='create_card'),
-    path('cards/<int:card_id>/edit/', views.edit_card, name='edit_card'),
-    path('cards/update-position/', views.update_card_position, name='update_card_position'),
-    path('cards/<int:card_id>/delete/', views.delete_card, name='delete_card'),
-    
-    # Miembros
-    path('<int:board_id>/members/add/', views.add_member, name='add_member'),
-    path('members/<int:membership_id>/remove/', views.remove_member, name='remove_member'),
+    # path('', mi_vista, name='index'),
 ]

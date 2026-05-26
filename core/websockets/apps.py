@@ -1,7 +1,0 @@
-# websockets/apps.py - Configurar nombre verbose
-from django.apps import AppConfig
-
-class WebsocketsConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
-    name = 'websockets'
-    verbose_name = 'WebSockets y Comunicación en Tiempo Real'

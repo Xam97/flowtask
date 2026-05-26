@@ -31,9 +31,9 @@ class Board(models.Model):
         help_text="Usuario propietario del tablero"
     )
     members = models.ManyToManyField(
-        User,
-        through='Membership',
-        related_name='boards',
+        User, 
+        related_name='boards', 
+        blank=True,
         help_text="Miembros colaboradores del tablero"
     )
     

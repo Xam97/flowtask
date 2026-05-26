@@ -1,8 +1,13 @@
+// static/js/helpers.js
+// Utilidades JavaScript reutilizables para FlowTask
+// Módulo con funciones helper para CSRF, fetch, etc.
+
 const FlowTaskHelpers = (function() {
     'use strict';
     
     /**
      * Obtiene el token CSRF de la cookie
+     * Necesario para todas las peticiones fetch POST/PUT/DELETE
      */
     function getCSRFToken() {
         const cookieValue = document.cookie
@@ -14,6 +19,7 @@ const FlowTaskHelpers = (function() {
     
     /**
      * Wrapper para fetch con configuración automática
+     * Incluye headers, CSRF, y manejo de errores
      */
     async function apiFetch(url, options = {}) {
         const defaultOptions = {
@@ -53,23 +59,22 @@ const FlowTaskHelpers = (function() {
      * Muestra un toast notification
      */
     function showToast(message, type = 'info') {
+        // Crear contenedor de toasts si no existe
         let container = document.querySelector('.toast-container');
         if (!container) {
             container = document.createElement('div');
             container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
-            container.style.zIndex = '9999';
             document.body.appendChild(container);
         }
         
+        // Crear toast
         const toastId = 'toast-' + Date.now();
-        const bgColor = type === 'error' ? 'bg-danger' : type === 'success' ? 'bg-success' : 'bg-primary';
-        
         const toastHtml = `
-            <div id="${toastId}" class="toast" role="alert" data-bs-autohide="true" data-bs-delay="3000">
-                <div class="toast-header ${bgColor} text-white">
+            <div id="${toastId}" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="3000">
+                <div class="toast-header">
                     <i class="fas fa-bell me-2"></i>
                     <strong class="me-auto">FlowTask</strong>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
                 </div>
                 <div class="toast-body">
                     ${message}
@@ -82,6 +87,7 @@ const FlowTaskHelpers = (function() {
         const toast = new bootstrap.Toast(toastElement);
         toast.show();
         
+        // Remover del DOM después de ocultar
         toastElement.addEventListener('hidden.bs.toast', () => {
             toastElement.remove();
         });
@@ -102,7 +108,7 @@ const FlowTaskHelpers = (function() {
     }
     
     /**
-     * Debounce para optimizar eventos frecuentes
+     * Debounce para optimizar eventos frecuentes (ej: búsqueda)
      */
     function debounce(func, wait) {
         let timeout;
@@ -116,58 +122,15 @@ const FlowTaskHelpers = (function() {
         };
     }
     
-    /**
-     * Escapa HTML para prevenir XSS
-     */
-    function escapeHtml(text) {
-        if (!text) return '';
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-    
+    // API pública
     return {
         getCSRFToken,
         apiFetch,
         showToast,
         formatDate,
         debounce,
-        escapeHtml
     };
 })();
 
+// Exponer globalmente
 window.FlowTaskHelpers = FlowTaskHelpers;
-
-    /**
-     * Muestra un loader/spinner
-     */
-    function showLoader(containerId) {
-        const container = document.getElementById(containerId);
-        if (container) {
-            const loader = document.createElement('div');
-            loader.className = 'loader-spinner';
-            loader.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>';
-            container.appendChild(loader);
-        }
-    }
-    
-    /**
-     * Oculta el loader
-     */
-    function hideLoader(containerId) {
-        const container = document.getElementById(containerId);
-        if (container) {
-            const loader = container.querySelector('.loader-spinner');
-            if (loader) loader.remove();
-        }
-    }
-    
-    /**
-     * Confirmación con modal personalizada
-     */
-    function confirmAction(message, onConfirm, onCancel) {
-        const confirmed = confirm(message);
-        if (confirmed && onConfirm) onConfirm();
-        if (!confirmed && onCancel) onCancel();
-        return confirmed;
-    }
