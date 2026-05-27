@@ -1,10 +1,4 @@
 from django.urls import path
-<<<<<<< HEAD
-
-# Reemplazá o agregá tus vistas acá cuando las tengas
-urlpatterns = [
-    # path('', mi_vista, name='index'),
-=======
 from . import views
 
 urlpatterns = [
@@ -31,5 +25,4 @@ urlpatterns = [
     # Miembros
     path('<int:board_id>/members/add/', views.add_member, name='add_member'),
     path('members/<int:membership_id>/remove/', views.remove_member, name='remove_member'),
->>>>>>> origin/camilarodas
 ]

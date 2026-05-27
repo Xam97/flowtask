@@ -1,15 +1,10 @@
 # Enrutamiento principal de WebSockets - Importa rutas desde websockets
 
-<<<<<<< HEAD
 from django.urls import re_path, include
 from websockets import consumers
-=======
-from django.urls import path, include
->>>>>>> origin/camilarodas
 
 # Importar las rutas definidas en la app websockets
 websocket_urlpatterns = [
-<<<<<<< HEAD
     # WebSocket para actividad en tiempo real de un tablero específico
     # Ejemplo: ws://localhost:8000/ws/board/5/
     re_path(
@@ -32,7 +27,3 @@ websocket_urlpatterns = [
 
 
 
-=======
-    path('ws/', include('websockets.routing')),
-]
->>>>>>> origin/camilarodas
