@@ -1,9 +1,9 @@
-# Enrutamiento principal de WebSockets - Importa rutas desde websockets
+# Enrutamiento de WebSockets para Django Channels
+# Define qué consumer maneja cada tipo de conexión
 
 from django.urls import re_path, include
 from websockets import consumers
 
-# Importar las rutas definidas en la app websockets
 websocket_urlpatterns = [
     # WebSocket para actividad en tiempo real de un tablero específico
     # Ejemplo: ws://localhost:8000/ws/board/5/

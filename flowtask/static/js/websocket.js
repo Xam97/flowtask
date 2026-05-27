@@ -1,25 +1,16 @@
-<<<<<<< HEAD
 // static/js/websocket.js
 // Módulo para manejo de WebSockets en FlowTask
-// PREPARACIÓN: Estructura base, no implementa lógica completa todavía
 
-=======
->>>>>>> origin/camilarodas
 const FlowTaskWebSocket = (function() {
     'use strict';
     
     let socket = null;
-<<<<<<< HEAD
-=======
     let notificationSocket = null;
->>>>>>> origin/camilarodas
     let currentBoardId = null;
     let reconnectAttempts = 0;
     const MAX_RECONNECT_ATTEMPTS = 5;
     const RECONNECT_DELAY = 3000;
     
-<<<<<<< HEAD
-=======
     // Callbacks para eventos
     let eventHandlers = {
         onCardMoved: null,
@@ -30,66 +21,10 @@ const FlowTaskWebSocket = (function() {
         onNotification: null
     };
     
->>>>>>> origin/camilarodas
     /**
      * Conecta al WebSocket de un tablero específico
      */
     function connectToBoard(boardId) {
-<<<<<<< HEAD
-        if (socket && socket.readyState === WebSocket.OPEN) {
-            console.log('WebSocket ya conectado');
-            return;
-        }
-        
-        if (currentBoardId === boardId && socket) {
-            return;
-        }
-        
-        currentBoardId = boardId;
-        const wsUrl = `ws://${window.location.host}/ws/board/${boardId}/`;
-        
-        try {
-            socket = new WebSocket(wsUrl);
-            
-            socket.onopen = onOpen;
-            socket.onclose = onClose;
-            socket.onerror = onError;
-            socket.onmessage = onMessage;
-            
-        } catch (error) {
-            console.error('Error al conectar WebSocket:', error);
-        }
-    }
-    
-    /**
-     * WebSocket connection opened
-     */
-    function onOpen(event) {
-        console.log(`WebSocket conectado al tablero ${currentBoardId}`);
-        reconnectAttempts = 0;
-        FlowTaskHelpers.showToast('Conectado en tiempo real', 'success');
-        
-        // Suscribirse a notificaciones
-        connectToNotifications();
-    }
-    
-    /**
-     * WebSocket connection closed
-     */
-    function onClose(event) {
-        console.log('WebSocket desconectado');
-        
-        // Intentar reconectar si no es un cierre intencional
-        if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS && currentBoardId) {
-            reconnectAttempts++;
-            const delay = RECONNECT_DELAY * reconnectAttempts;
-            console.log(`Reconectando en ${delay}ms... (intento ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
-            
-            setTimeout(() => {
-                connectToBoard(currentBoardId);
-            }, delay);
-        } else if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-=======
         if (!boardId) {
             console.error('Board ID es requerido');
             return;
@@ -118,22 +53,11 @@ const FlowTaskWebSocket = (function() {
             socket.onmessage = onMessage;
         } catch (error) {
             console.error('Error al conectar WebSocket del tablero:', error);
->>>>>>> origin/camilarodas
             FlowTaskHelpers.showToast('Error de conexión en tiempo real', 'error');
         }
     }
     
     /**
-<<<<<<< HEAD
-     * WebSocket error
-     */
-    function onError(error) {
-        console.error('WebSocket error:', error);
-    }
-    
-    /**
-     * Recibe mensaje del WebSocket
-=======
      * Conecta al WebSocket de notificaciones
      */
     function connectToNotifications() {
@@ -206,26 +130,10 @@ const FlowTaskWebSocket = (function() {
     
     /**
      * Maneja mensajes del tablero
->>>>>>> origin/camilarodas
      */
     function onMessage(event) {
         try {
             const data = JSON.parse(event.data);
-<<<<<<< HEAD
-            console.log('Mensaje WebSocket recibido:', data);
-            
-            // TODO: Implementar handlers específicos en fase 2
-            switch (data.type) {
-                case 'card_moved':
-                    // handleCardMoved(data);
-                    break;
-                case 'new_comment':
-                    // handleNewComment(data);
-                    break;
-                case 'activity_update':
-                    // handleActivityUpdate(data);
-                    break;
-=======
             console.log('Mensaje WebSocket recibido:', data.type);
             
             switch (data.type) {
@@ -237,7 +145,6 @@ const FlowTaskWebSocket = (function() {
                     if (eventHandlers.onCardMoved) {
                         eventHandlers.onCardMoved(data.data);
                     }
-                    // Actualizar UI automáticamente
                     updateCardPositionInUI(data.data);
                     break;
                     
@@ -273,7 +180,6 @@ const FlowTaskWebSocket = (function() {
                     FlowTaskHelpers.showToast(data.message, 'error');
                     break;
                     
->>>>>>> origin/camilarodas
                 default:
                     console.log('Tipo de mensaje no manejado:', data.type);
             }
@@ -283,16 +189,6 @@ const FlowTaskWebSocket = (function() {
     }
     
     /**
-<<<<<<< HEAD
-     * Envía un mensaje a través del WebSocket
-     */
-    function sendMessage(message) {
-        if (socket && socket.readyState === WebSocket.OPEN) {
-            socket.send(JSON.stringify(message));
-        } else {
-            console.warn('WebSocket no está conectado');
-            FlowTaskHelpers.showToast('Sin conexión en tiempo real', 'warning');
-=======
      * Maneja mensajes de notificaciones
      */
     function onNotificationMessage(event) {
@@ -301,27 +197,19 @@ const FlowTaskWebSocket = (function() {
             console.log('Notificación recibida:', data);
             
             if (data.type === 'notification') {
-                // Mostrar toast
                 FlowTaskHelpers.showToast(data.data.message, 'info');
-                
-                // Actualizar badge
                 updateNotificationBadge();
                 
-                // Llamar callback si existe
                 if (eventHandlers.onNotification) {
                     eventHandlers.onNotification(data.data);
                 }
             }
         } catch (error) {
             console.error('Error al parsear notificación:', error);
->>>>>>> origin/camilarodas
         }
     }
     
     /**
-<<<<<<< HEAD
-     * Desconecta el WebSocket
-=======
      * Envía un mensaje a través del WebSocket del tablero
      */
     function sendMessage(message) {
@@ -394,55 +282,21 @@ const FlowTaskWebSocket = (function() {
     
     /**
      * Desconecta todos los WebSockets
->>>>>>> origin/camilarodas
      */
     function disconnect() {
         if (socket) {
             socket.close();
             socket = null;
         }
-<<<<<<< HEAD
-=======
         if (notificationSocket) {
             notificationSocket.close();
             notificationSocket = null;
         }
->>>>>>> origin/camilarodas
         currentBoardId = null;
         reconnectAttempts = 0;
     }
     
     /**
-<<<<<<< HEAD
-     * Conecta al canal de notificaciones personales
-     */
-    function connectToNotifications() {
-        const wsUrl = `ws://${window.location.host}/ws/notifications/`;
-        const notificationSocket = new WebSocket(wsUrl);
-        
-        notificationSocket.onopen = () => {
-            console.log('Conectado a notificaciones');
-        };
-        
-        notificationSocket.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            FlowTaskHelpers.showToast(data.message, 'info');
-            
-            // Actualizar badge de notificaciones
-            updateNotificationBadge();
-        };
-        
-        notificationSocket.onerror = (error) => {
-            console.error('Error en notificaciones:', error);
-        };
-    }
-    
-    /**
-     * Actualiza el contador de notificaciones
-     */
-    function updateNotificationBadge() {
-        // TODO: Implementar en fase 2
-=======
      * Registra handlers para eventos
      */
     function on(event, callback) {
@@ -532,7 +386,6 @@ const FlowTaskWebSocket = (function() {
      * Actualiza el badge de notificaciones
      */
     function updateNotificationBadge() {
->>>>>>> origin/camilarodas
         const badge = document.querySelector('.notification-icon .badge');
         if (badge) {
             const current = parseInt(badge.textContent) || 0;
@@ -541,13 +394,6 @@ const FlowTaskWebSocket = (function() {
         }
     }
     
-<<<<<<< HEAD
-    // API pública
-    return {
-        connectToBoard,
-        disconnect,
-        sendMessage,
-=======
     /**
      * Escapa HTML para prevenir XSS
      */
@@ -570,7 +416,6 @@ const FlowTaskWebSocket = (function() {
         createCard,
         deleteCard,
         on
->>>>>>> origin/camilarodas
     };
 })();
 

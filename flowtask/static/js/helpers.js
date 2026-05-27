@@ -1,19 +1,13 @@
-<<<<<<< HEAD
 // static/js/helpers.js
 // Utilidades JavaScript reutilizables para FlowTask
 // Módulo con funciones helper para CSRF, fetch, etc.
 
-=======
->>>>>>> origin/camilarodas
 const FlowTaskHelpers = (function() {
     'use strict';
     
     /**
      * Obtiene el token CSRF de la cookie
-<<<<<<< HEAD
      * Necesario para todas las peticiones fetch POST/PUT/DELETE
-=======
->>>>>>> origin/camilarodas
      */
     function getCSRFToken() {
         const cookieValue = document.cookie
@@ -25,10 +19,7 @@ const FlowTaskHelpers = (function() {
     
     /**
      * Wrapper para fetch con configuración automática
-<<<<<<< HEAD
      * Incluye headers, CSRF, y manejo de errores
-=======
->>>>>>> origin/camilarodas
      */
     async function apiFetch(url, options = {}) {
         const defaultOptions = {
@@ -65,44 +56,28 @@ const FlowTaskHelpers = (function() {
     }
     
     /**
-     * Muestra un toast notification
+     * Muestra un toast notification con colores dinámicos (Bootstrap 5)
      */
     function showToast(message, type = 'info') {
-<<<<<<< HEAD
         // Crear contenedor de toasts si no existe
-=======
->>>>>>> origin/camilarodas
         let container = document.querySelector('.toast-container');
         if (!container) {
             container = document.createElement('div');
             container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
-<<<<<<< HEAD
-            document.body.appendChild(container);
-        }
-        
-        // Crear toast
-        const toastId = 'toast-' + Date.now();
-        const toastHtml = `
-            <div id="${toastId}" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="3000">
-                <div class="toast-header">
-                    <i class="fas fa-bell me-2"></i>
-                    <strong class="me-auto">FlowTask</strong>
-                    <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
-=======
             container.style.zIndex = '9999';
             document.body.appendChild(container);
         }
         
+        // Asignar color según el tipo de alerta
         const toastId = 'toast-' + Date.now();
         const bgColor = type === 'error' ? 'bg-danger' : type === 'success' ? 'bg-success' : 'bg-primary';
         
         const toastHtml = `
-            <div id="${toastId}" class="toast" role="alert" data-bs-autohide="true" data-bs-delay="3000">
+            <div id="${toastId}" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="3000">
                 <div class="toast-header ${bgColor} text-white">
                     <i class="fas fa-bell me-2"></i>
                     <strong class="me-auto">FlowTask</strong>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
->>>>>>> origin/camilarodas
                 </div>
                 <div class="toast-body">
                     ${message}
@@ -115,17 +90,14 @@ const FlowTaskHelpers = (function() {
         const toast = new bootstrap.Toast(toastElement);
         toast.show();
         
-<<<<<<< HEAD
         // Remover del DOM después de ocultar
-=======
->>>>>>> origin/camilarodas
         toastElement.addEventListener('hidden.bs.toast', () => {
             toastElement.remove();
         });
     }
     
     /**
-     * Formatea fecha para mostrar
+     * Formatea fecha para mostrar con el estándar regional local
      */
     function formatDate(dateString) {
         const date = new Date(dateString);
@@ -139,11 +111,7 @@ const FlowTaskHelpers = (function() {
     }
     
     /**
-<<<<<<< HEAD
      * Debounce para optimizar eventos frecuentes (ej: búsqueda)
-=======
-     * Debounce para optimizar eventos frecuentes
->>>>>>> origin/camilarodas
      */
     function debounce(func, wait) {
         let timeout;
@@ -157,11 +125,8 @@ const FlowTaskHelpers = (function() {
         };
     }
     
-<<<<<<< HEAD
-    // API pública
-=======
     /**
-     * Escapa HTML para prevenir XSS
+     * Escapa HTML para prevenir vulnerabilidades XSS
      */
     function escapeHtml(text) {
         if (!text) return '';
@@ -170,28 +135,8 @@ const FlowTaskHelpers = (function() {
         return div.innerHTML;
     }
     
->>>>>>> origin/camilarodas
-    return {
-        getCSRFToken,
-        apiFetch,
-        showToast,
-        formatDate,
-        debounce,
-<<<<<<< HEAD
-    };
-})();
-
-// Exponer globalmente
-window.FlowTaskHelpers = FlowTaskHelpers;
-=======
-        escapeHtml
-    };
-})();
-
-window.FlowTaskHelpers = FlowTaskHelpers;
-
     /**
-     * Muestra un loader/spinner
+     * Muestra un loader/spinner dentro de un contenedor
      */
     function showLoader(containerId) {
         const container = document.getElementById(containerId);
@@ -204,7 +149,7 @@ window.FlowTaskHelpers = FlowTaskHelpers;
     }
     
     /**
-     * Oculta el loader
+     * Oculta el loader de un contenedor
      */
     function hideLoader(containerId) {
         const container = document.getElementById(containerId);
@@ -215,7 +160,7 @@ window.FlowTaskHelpers = FlowTaskHelpers;
     }
     
     /**
-     * Confirmación con modal personalizada
+     * Confirmación con ventana nativa simplificada
      */
     function confirmAction(message, onConfirm, onCancel) {
         const confirmed = confirm(message);
@@ -223,4 +168,20 @@ window.FlowTaskHelpers = FlowTaskHelpers;
         if (!confirmed && onCancel) onCancel();
         return confirmed;
     }
->>>>>>> origin/camilarodas
+    
+    // API pública de utilidades
+    return {
+        getCSRFToken,
+        apiFetch,
+        showToast,
+        formatDate,
+        debounce,
+        escapeHtml,
+        showLoader,
+        hideLoader,
+        confirmAction
+    };
+})();
+
+// Exponer globalmente para los demás scripts de la app
+window.FlowTaskHelpers = FlowTaskHelpers;

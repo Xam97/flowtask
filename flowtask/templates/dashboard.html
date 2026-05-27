@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 {# Dashboard principal - Muestra todos los tableros del usuario #}
-
-=======
->>>>>>> origin/camilarodas
 {% extends 'base.html' %}
 {% load static %}
 
@@ -21,7 +17,7 @@
         </button>
     </div>
     
-    {# Tableros que soy propietario #}
+    {# Tableros de los que soy propietario #}
     {% if owned_boards %}
     <div class="boards-section">
         <h2>Propietario</h2>
@@ -40,23 +36,6 @@
                     </div>
                 </div>
                 <div class="board-card-footer">
-<<<<<<< HEAD
-                    <a href="#" class="btn btn-sm btn-outline-primary">Abrir Tablero</a>
-                    <button class="btn btn-sm btn-icon"><i class="fas fa-ellipsis-v"></i></button>
-                </div>
-            </div>
-            {% empty %}
-            <div class="empty-state">
-                <i class="fas fa-chalkboard"></i>
-                <p>No tienes tableros aún.</p>
-                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createBoardModal">
-                    Crear tu primer tablero
-                </button>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-=======
                     <a href="{% url 'board_detail' board.id %}" class="btn btn-sm btn-outline-primary">Abrir Tablero</a>
                     <button class="btn btn-sm btn-icon"><i class="fas fa-ellipsis-v"></i></button>
                 </div>
@@ -72,7 +51,6 @@
             Crear tu primer tablero
         </button>
     </div>
->>>>>>> origin/camilarodas
     {% endif %}
     
     {# Tableros donde soy miembro #}
@@ -94,11 +72,7 @@
                     </div>
                 </div>
                 <div class="board-card-footer">
-<<<<<<< HEAD
-                    <a href="#" class="btn btn-sm btn-outline-primary">Abrir Tablero</a>
-=======
                     <a href="{% url 'board_detail' board.id %}" class="btn btn-sm btn-outline-primary">Abrir Tablero</a>
->>>>>>> origin/camilarodas
                     <button class="btn btn-sm btn-icon"><i class="fas fa-ellipsis-v"></i></button>
                 </div>
             </div>
@@ -107,10 +81,7 @@
     </div>
     {% endif %}
 </div>
-<<<<<<< HEAD
-=======
 
-<!-- MODAL: CREAR TABLERO -->
 <div class="modal fade" id="createBoardModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -138,5 +109,4 @@
         </div>
     </div>
 </div>
->>>>>>> origin/camilarodas
 {% endblock %}
