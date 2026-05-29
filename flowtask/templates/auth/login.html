@@ -1,7 +1,13 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Iniciar Sesión{% endblock %}
+{% block title %}Iniciar Sesión | FlowTask{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/auth.css' %}">
+{% endblock %}
+
+{% block messages %}{% endblock %}
 
 {% block content %}
 <div class="auth-container">
@@ -9,26 +15,67 @@
         <div class="auth-header">
             <i class="fas fa-tasks fa-3x"></i>
             <h2>FlowTask</h2>
-            <p>Inicia sesión para continuar</p>
+            <p>Inicia sesión en tu cuenta</p>
         </div>
         
-        <form method="POST" class="auth-form">
+        <form method="POST" class="auth-form" id="loginForm" novalidate>
             {% csrf_token %}
             
-            <div class="form-group">
+            <!-- Campo Usuario -->
+            <div class="form-group" id="username-group">
                 <label for="id_username">
                     <i class="fas fa-user"></i>
                     Usuario
                 </label>
-                <input type="text" name="username" id="id_username" class="form-control" required autofocus>
+                <input type="text" 
+                       name="username" 
+                       id="id_username" 
+                       class="form-control" 
+                       value="{{ form.username.value|default:'' }}"
+                       required>
+                <small class="text-muted">Ingresa tu nombre de usuario</small>
+                {% if form.username.errors %}
+                <div class="error-message">
+                    <i class="fas fa-exclamation-circle"></i>
+                    {% for error in form.username.errors %}
+                        {{ error }}
+                    {% endfor %}
+                </div>
+                {% endif %}
             </div>
             
-            <div class="form-group">
+            <!-- Campo Contraseña -->
+            <div class="form-group" id="password-group">
                 <label for="id_password">
                     <i class="fas fa-lock"></i>
                     Contraseña
                 </label>
                 <input type="password" name="password" id="id_password" class="form-control" required>
+                <small class="text-muted">Ingresa tu contraseña</small>
+                {% if form.password.errors %}
+                <div class="error-message">
+                    <i class="fas fa-exclamation-circle"></i>
+                    {% for error in form.password.errors %}
+                        {{ error }}
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% if form.non_field_errors %}
+                <div class="error-message">
+                    <i class="fas fa-exclamation-circle"></i>
+                    {% for error in form.non_field_errors %}
+                        {{ error }}
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- Recordarme -->
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="remember">
+                    <span>Recordarme</span>
+                </label>
             </div>
             
             <button type="submit" class="btn-auth">
@@ -38,8 +85,12 @@
         </form>
         
         <div class="auth-footer">
-            ¿No tienes cuenta? <a href="{% url 'register' %}">Regístrate</a>
+            ¿No tienes cuenta? <a href="{% url 'register' %}">Regístrate gratis</a>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/login.js' %}"></script>
 {% endblock %}

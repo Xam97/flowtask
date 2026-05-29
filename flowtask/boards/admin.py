@@ -2,6 +2,10 @@
 # Optimizado para gestión de tableros, listas y tarjetas
 
 from django.contrib import admin
+from .models import Board
+from .models import Membership
+from .models import List
+from .models import Card
 
 # ========== BOARD ADMIN ==========
 @admin.register(Board)

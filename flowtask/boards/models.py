@@ -51,6 +51,16 @@ class Board(models.Model):
         ordering = ['-created_at']
         verbose_name = "Tablero"
         verbose_name_plural = "Tableros"
+
+    def save(self, *args, **kwargs):
+        """Guardar el board y agregar al owner como miembro automáticamente"""
+        is_new = self.pk is None
+        super().save(*args, **kwargs)
+        
+        # Si es un board nuevo, agregar al owner como miembro
+        # if is_new and self.owner:
+        #     if not self.members.filter(id=self.owner.id).exists():
+        #         self.members.add(self.owner)    
     
     def __str__(self):
         return self.name
@@ -58,6 +68,7 @@ class Board(models.Model):
     def get_card_count(self):
         """Retorna el número total de tarjetas en el tablero"""
         return Card.objects.filter(list__board=self).count()
+        
 
 # ========== MEMBERSHIP (RELACIÓN USUARIO-TABLERO) ==========
 class Membership(models.Model):
@@ -224,3 +235,75 @@ class Card(models.Model):
             )['position__max']
             self.position = (max_position or 0) + 10
         super().save(*args, **kwargs)
+
+# ============================================
+# MODELOS PARA FASE 3 (TIEMPO REAL)
+# ============================================
+
+class Comment(models.Model):
+    """Comentarios en tareas"""
+    task = models.ForeignKey('Card', on_delete=models.CASCADE, related_name='comments')
+    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='comments')
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['created_at']
+    
+    def __str__(self):
+        return f"Comentario de {self.author.email} en {self.task.title[:20]}"
+
+
+class Notification(models.Model):
+    """Notificaciones para usuarios"""
+    NOTIFICATION_TYPES = (
+        ('task_assigned', 'Tarea asignada'),
+        ('comment_added', 'Nuevo comentario'),
+        ('task_moved', 'Tarea movida'),
+        ('mention', 'Mencionado'),
+    )
+    
+    recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_notifications', null=True, blank=True)
+    notification_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES)
+    task = models.ForeignKey('Card', on_delete=models.CASCADE, null=True, blank=True)
+    board = models.ForeignKey(Board, on_delete=models.CASCADE, null=True, blank=True)
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Notificación para {self.recipient.email}: {self.message[:30]}"
+
+
+class Activity(models.Model):
+    """Registro de actividad en tableros"""
+    ACTION_TYPES = (
+        ('task_created', 'Tarea creada'),
+        ('task_updated', 'Tarea actualizada'),
+        ('task_moved', 'Tarea movida'),
+        ('task_deleted', 'Tarea eliminada'),
+        ('comment_added', 'Comentario agregado'),
+        ('member_added', 'Miembro agregado'),
+        ('member_removed', 'Miembro removido'),
+    )
+    
+    board = models.ForeignKey(Board, on_delete=models.CASCADE, related_name='activities')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='activities')
+    action_type = models.CharField(max_length=20, choices=ACTION_TYPES)
+    task = models.ForeignKey('Card', on_delete=models.CASCADE, null=True, blank=True)
+    old_list = models.ForeignKey(List, on_delete=models.SET_NULL, null=True, blank=True, related_name='old_activities')
+    new_list = models.ForeignKey(List, on_delete=models.SET_NULL, null=True, blank=True, related_name='new_activities')
+    details = models.JSONField(default=dict, blank=True)  # Para almacenar detalles adicionales
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name_plural = "Activities"
+    
+    def __str__(self):
+        return f"{self.user.email} - {self.get_action_type_display()} en {self.board.name}"

@@ -65,8 +65,11 @@ def login_view(request):
                 # Redirigir a la página solicitada originalmente o dashboard
                 next_url = request.GET.get('next', 'dashboard')
                 return redirect(next_url)
+        # IMPORTANTE: NO usar messages.error aquí
+        # En su lugar, pasamos el error al formulario
         else:
-            messages.error(request, 'Usuario o contraseña incorrectos.')
+            # Agregar error al formulario para mostrarlo debajo del campo
+            form.add_error('password', 'Usuario o contraseña incorrectos. Por favor, intenta nuevamente.')
     else:
         form = AuthenticationForm()
     

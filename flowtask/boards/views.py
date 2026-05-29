@@ -10,6 +10,9 @@ from django.views.decorators.csrf import csrf_protect
 from django.db import models
 from .models import Board, List, Card, Membership
 from django.contrib.auth.models import User
+from rest_framework import generics, permissions, status
+from rest_framework.response import Response
+from .serializers import UserRegistrationSerializer
 
 
 # ========== VISTAS DE TABLEROS ==========
@@ -19,8 +22,11 @@ def board_list(request):
     """
     Lista todos los tableros del usuario (propios + colaboraciones)
     """
+    # Boards donde el usuario es propietario
     owned_boards = request.user.owned_boards.filter(is_archived=False)
-    member_boards = request.user.boards.filter(is_archived=False)
+    
+    # Boards donde el usuario es miembro PERO NO es propietario
+    member_boards = request.user.boards.filter(is_archived=False).exclude(owner=request.user)
     
     context = {
         'owned_boards': owned_boards,
@@ -36,16 +42,18 @@ def board_detail(request, pk):
     """
     board = get_object_or_404(Board, pk=pk, is_archived=False)
     
-    # Verificar permisos
+    # Verificar permisos: propietario O miembro
     if board.owner != request.user and not board.members.filter(id=request.user.id).exists():
         messages.error(request, 'No tienes permiso para ver este tablero')
         return redirect('dashboard')
     
-    # Obtener listas ordenadas por posición
-    lists = board.lists.all().prefetch_related('cards')
+    # Obtener listas ordenadas por posición con sus tarjetas
+    lists = board.lists.all().prefetch_related('cards').order_by('position')
     
-    # Obtener miembros
-    members = list(board.members.all()) + [board.owner]
+    # Obtener miembros (evitando duplicados)
+    members = list(board.members.all())
+    if board.owner not in members:
+        members.append(board.owner)
     
     context = {
         'board': board,
@@ -86,6 +94,7 @@ def create_board(request):
             position=(position + 1) * 10
         )
     
+    # Verificar si es petición AJAX
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return JsonResponse({
             'success': True,
@@ -97,6 +106,7 @@ def create_board(request):
             }
         })
     
+    # Para peticiones normales (formulario tradicional)
     messages.success(request, f'Tablero "{name}" creado exitosamente')
     return redirect('board_detail', pk=board.id)
 
@@ -361,6 +371,7 @@ def remove_member(request, membership_id):
     messages.success(request, f'{username} removido del tablero')
     return redirect('board_detail', pk=board_id)
 
+
 # ========== EDICIÓN DE TABLEROS ==========
 
 @login_required
@@ -458,7 +469,9 @@ def edit_card(request, card_id):
         return redirect('board_detail', pk=board.id)
     
     # Obtener miembros para el select de asignación
-    members = list(board.members.all()) + [board.owner]
+    members = list(board.members.all())
+    if board.owner not in members:
+        members.append(board.owner)
     
     if request.method == 'POST':
         form = CardForm(request.POST, instance=card)
@@ -508,38 +521,30 @@ def update_list_position(request):
     return JsonResponse({'success': True})
 
 
-# ========== OPTIMIZACIÓN DE VISTA DETAIL ==========
-# MODIFICAR board_detail para usar select_related y prefetch_related
+# ========== REGISTRO DE USUARIOS (API REST) ==========
 
-@login_required
-def board_detail(request, pk):
-    """
-    Vista detallada de un tablero (vista Kanban) - VERSIÓN OPTIMIZADA
-    """
-    # Optimización con select_related y prefetch_related
-    board = get_object_or_404(
-        Board.objects.select_related('owner'),
-        pk=pk,
-        is_archived=False
-    )
+class RegisterView(generics.CreateAPIView):
+    """Vista de registro con validaciones robustas"""
+    queryset = User.objects.all()
+    permission_classes = (permissions.AllowAny,)
+    serializer_class = UserRegistrationSerializer
     
-    # Verificar permisos
-    if board.owner != request.user and not board.members.filter(id=request.user.id).exists():
-        messages.error(request, 'No tienes permiso para ver este tablero')
-        return redirect('dashboard')
-    
-    # Optimización: prefetch lists y sus cards con select_related
-    lists = board.lists.all().prefetch_related(
-        'cards__assigned_to',
-        'cards__created_by'
-    ).order_by('position')
-    
-    # Obtener miembros del tablero para asignaciones
-    members = list(board.members.select_related().all()) + [board.owner]
-    
-    context = {
-        'board': board,
-        'lists': lists,
-        'members': members,
-    }
-    return render(request, 'boards/board_detail.html', context)
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        
+        if serializer.is_valid():
+            user = serializer.save()
+            return Response({
+                'message': 'Usuario creado exitosamente',
+                'user': {
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                }
+            }, status=status.HTTP_201_CREATED)
+        
+        return Response({
+            'errors': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)

@@ -1,5 +1,11 @@
 from django.urls import path
 from . import views
+from rest_framework.routers import DefaultRouter
+
+router = DefaultRouter()
+#router.register(r'boards', views.BoardViewSet)
+#router.register(r'lists', views.ListViewSet)
+#router.register(r'cards', views.CardViewSet)
 
 urlpatterns = [
     # Tableros
