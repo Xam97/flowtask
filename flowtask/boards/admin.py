@@ -1,11 +1,10 @@
+# boards/admin.py
 # Configuración del panel administrativo
 # Optimizado para gestión de tableros, listas y tarjetas
 
 from django.contrib import admin
-from .models import Board
-from .models import Membership
-from .models import List
-from .models import Card
+from .models import Board, Membership, List, Card
+
 
 # ========== BOARD ADMIN ==========
 @admin.register(Board)
@@ -14,11 +13,13 @@ class BoardAdmin(admin.ModelAdmin):
     list_filter = ['is_archived', 'created_at', 'owner']
     search_fields = ['name', 'description', 'owner__username']
     readonly_fields = ['created_at', 'updated_at']
-    filter_horizontal = ['members']  # Mejor UI para ManyToMany
+    # ❌ ELIMINADO: filter_horizontal no funciona con modelos intermedios (Membership)
+    # filter_horizontal = ['members']  # ← COMENTADO
     
     def get_member_count(self, obj):
         return obj.members.count()
     get_member_count.short_description = "Miembros"
+
 
 # ========== MEMBERSHIP ADMIN ==========
 @admin.register(Membership)
@@ -27,6 +28,7 @@ class MembershipAdmin(admin.ModelAdmin):
     list_filter = ['role', 'joined_at']
     search_fields = ['user__username', 'board__name']
 
+
 # ========== LIST ADMIN ==========
 @admin.register(List)
 class ListAdmin(admin.ModelAdmin):
@@ -34,6 +36,7 @@ class ListAdmin(admin.ModelAdmin):
     list_filter = ['board', 'created_at']
     search_fields = ['name', 'board__name']
     readonly_fields = ['created_at', 'updated_at']
+
 
 # ========== CARD ADMIN ==========
 @admin.register(Card)

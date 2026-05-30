@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     'notifications', # Sistema de notificaciones
     'activity',     # Registro de actividad reciente
     'websockets',   # Comunicación en tiempo real
+    'comments',     # Comentarios en tarjetas
 ]
 
 # ========== MIDDLEWARE ==========
