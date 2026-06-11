@@ -14,6 +14,9 @@ from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from .serializers import UserRegistrationSerializer
 
+# 🔥 IMPORTACIÓN DE LA UTILERÍA DE NOTIFICACIONES
+from notifications.utils import crear_notificacion
+
 
 # ========== VISTAS DE TABLEROS ==========
 
@@ -22,10 +25,7 @@ def board_list(request):
     """
     Lista todos los tableros del usuario (propios + colaboraciones)
     """
-    # Boards donde el usuario es propietario
     owned_boards = request.user.owned_boards.filter(is_archived=False)
-    
-    # Boards donde el usuario es miembro PERO NO es propietario
     member_boards = request.user.boards.filter(is_archived=False).exclude(owner=request.user)
     
     context = {
@@ -42,15 +42,12 @@ def board_detail(request, pk):
     """
     board = get_object_or_404(Board, pk=pk, is_archived=False)
     
-    # Verificar permisos: propietario O miembro
     if board.owner != request.user and not board.members.filter(id=request.user.id).exists():
         messages.error(request, 'No tienes permiso para ver este tablero')
         return redirect('dashboard')
     
-    # Obtener listas ordenadas por posición con sus tarjetas
     lists = board.lists.all().prefetch_related('cards').order_by('position')
     
-    # Obtener miembros (evitando duplicados)
     members = list(board.members.all())
     if board.owner not in members:
         members.append(board.owner)
@@ -85,7 +82,6 @@ def create_board(request):
         owner=request.user
     )
     
-    # Crear listas por defecto
     default_lists = ['Pendiente', 'En proceso', 'Terminado']
     for position, list_name in enumerate(default_lists):
         List.objects.create(
@@ -94,7 +90,6 @@ def create_board(request):
             position=(position + 1) * 10
         )
     
-    # Verificar si es petición AJAX
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return JsonResponse({
             'success': True,
@@ -106,7 +101,6 @@ def create_board(request):
             }
         })
     
-    # Para peticiones normales (formulario tradicional)
     messages.success(request, f'Tablero "{name}" creado exitosamente')
     return redirect('board_detail', pk=board.id)
 
@@ -199,8 +193,11 @@ def delete_list(request, list_id):
 @require_http_methods(["POST"])
 def create_card(request, list_id):
     """
-    Crea una nueva tarjeta dentro de una lista
+    Crea una nueva tarjeta dentro de una lista y la transmite en tiempo real
     """
+    from channels.layers import get_channel_layer
+    from asgiref.sync import async_to_sync
+    
     list_obj = get_object_or_404(List, pk=list_id)
     board = list_obj.board
     
@@ -212,6 +209,7 @@ def create_card(request, list_id):
     
     title = request.POST.get('title')
     description = request.POST.get('description', '')
+    priority = request.POST.get('priority', 'medium')  # 🔥 CAPTURADO: Rescata la prioridad del formulario
     assigned_to_id = request.POST.get('assigned_to')
     
     if not title:
@@ -222,9 +220,11 @@ def create_card(request, list_id):
     
     max_position = list_obj.cards.aggregate(models.Max('position'))['position__max'] or 0
     
+    # Creación del registro incluyendo la prioridad
     card = Card.objects.create(
         title=title,
         description=description,
+        priority=priority,  # 🔥 GUARDADO: Se persiste en la base de datos
         list=list_obj,
         created_by=request.user,
         position=max_position + 10
@@ -235,8 +235,40 @@ def create_card(request, list_id):
             assigned_user = User.objects.get(id=assigned_to_id)
             card.assigned_to = assigned_user
             card.save()
+            
+            # 🔥 NOTIFICACIÓN PERSONAL: Alerta en la campana de notificaciones del destinatario
+            crear_notificacion(
+                recipient=assigned_user,
+                sender=request.user,
+                notification_type='task_assigned',
+                message=f"{request.user.username} te asignó la tarea '{card.title}' en el tablero '{board.name}'",
+                board_id=board.id,
+                card_id=card.id
+            )
         except User.DoesNotExist:
             pass
+
+    # 🔥 TRANSMISIÓN EN VIVO: Envía la tarjeta al WebSocket del Tablero para pintarla en el Kanban
+    try:
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f'board_{board.id}',  # Grupo del canal del tablero específico
+            {
+                'type': 'card_created_live',  # Invoca este método en tu BoardConsumer
+                'data': {
+                    'card_id': card.id,
+                    'title': card.title,
+                    'description': card.description,
+                    'priority': card.priority,  # 🔥 TRANSMITIDO: Crítico para que dragdrop.js pinte las clases CSS de prioridad
+                    'list_id': list_obj.id,
+                    'created_by': card.created_by.username,
+                    'assigned_to': card.assigned_to.username if card.assigned_to else None,
+                    'position': float(card.position)
+                }
+            }
+        )
+    except Exception as e:
+        print(f"Error transmitiendo creación de tarjeta por WebSocket: {e}")
     
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return JsonResponse({
@@ -245,6 +277,7 @@ def create_card(request, list_id):
                 'id': card.id,
                 'title': card.title,
                 'description': card.description,
+                'priority': card.priority,
                 'created_by': card.created_by.username,
                 'assigned_to': card.assigned_to.username if card.assigned_to else None,
                 'position': float(card.position)
@@ -254,12 +287,11 @@ def create_card(request, list_id):
     messages.success(request, f'Tarea "{title}" creada')
     return redirect('board_detail', pk=board.id)
 
-
 @login_required
 @require_http_methods(["POST"])
 def update_card_position(request):
     """
-    Actualiza la posición de una tarjeta (para Drag & Drop)
+    Actualiza la posición de una tarjeta (para Drag & Drop) e inyecta alertas en cambios de lista
     """
     import json
     data = json.loads(request.body)
@@ -269,18 +301,33 @@ def update_card_position(request):
     new_position = data.get('position')
     
     card = get_object_or_404(Card, pk=card_id)
+    old_list = card.list
+    board = card.list.board
     
-    if card.list.board.owner != request.user and not card.list.board.members.filter(id=request.user.id).exists():
+    if board.owner != request.user and not board.members.filter(id=request.user.id).exists():
         return JsonResponse({'success': False, 'error': 'Sin permiso'}, status=403)
     
-    if new_list_id and new_list_id != card.list.id:
+    cambio_de_lista = False
+    if new_list_id and int(new_list_id) != old_list.id:
         new_list = get_object_or_404(List, pk=new_list_id)
         card.list = new_list
+        cambio_de_lista = True
     
     if new_position is not None:
         card.position = float(new_position)
     
     card.save()
+    
+    # 🔥 NOTIFICACIÓN: Tarea movida (notificar al asignado si no fue él quien la movió)
+    if cambio_de_lista and card.assigned_to and card.assigned_to != request.user:
+        crear_notificacion(
+            recipient=card.assigned_to,
+            sender=request.user,
+            notification_type='task_moved',
+            message=f"{request.user.username} movió tu tarea '{card.title}' a la columna '{card.list.name}'",
+            board_id=board.id,
+            card_id=card.id
+        )
     
     return JsonResponse({'success': True})
 
@@ -309,7 +356,7 @@ def delete_card(request, card_id):
 @require_http_methods(["POST"])
 def add_member(request, board_id):
     """
-    Agrega un miembro al tablero
+    Agrega un miembro al tablero y le dispara la alerta en tiempo real
     """
     board = get_object_or_404(Board, pk=board_id)
     
@@ -332,6 +379,15 @@ def add_member(request, board_id):
             return redirect('board_detail', pk=board_id)
         
         Membership.objects.create(user=user, board=board, role=role)
+        
+        # 🔥 NOTIFICACIÓN: Nuevo miembro añadido al tablero (WebSocket + DB)
+        crear_notificacion(
+            recipient=user,
+            sender=request.user,
+            notification_type='member_added',
+            message=f"{request.user.username} te agregó como colaborador en el tablero '{board.name}'",
+            board_id=board.id
+        )
         
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return JsonResponse({
@@ -382,7 +438,6 @@ def edit_board(request, pk):
     """
     board = get_object_or_404(Board, pk=pk, is_archived=False)
     
-    # Verificar permisos: solo owner o admin pueden editar
     if board.owner != request.user:
         membership = Membership.objects.filter(user=request.user, board=board).first()
         if not membership or membership.role != 'admin':
@@ -411,7 +466,6 @@ def delete_board_permanent(request, pk):
     """
     board = get_object_or_404(Board, pk=pk)
     
-    # Solo el owner puede eliminar permanentemente
     if board.owner != request.user:
         messages.error(request, 'Solo el propietario puede eliminar el tablero')
         return redirect('board_detail', pk=pk)
@@ -433,7 +487,6 @@ def edit_list(request, list_id):
     list_obj = get_object_or_404(List, pk=list_id)
     board = list_obj.board
     
-    # Verificar permisos
     if board.owner != request.user:
         membership = Membership.objects.filter(user=request.user, board=board).first()
         if not membership or membership.role != 'admin':
@@ -458,17 +511,16 @@ def edit_list(request, list_id):
 @require_http_methods(["GET", "POST"])
 def edit_card(request, card_id):
     """
-    Editar una tarjeta existente
+    Editar una tarjeta existente controlando cambios en la asignación
     """
     card = get_object_or_404(Card, pk=card_id)
     board = card.list.board
+    old_assigned_to = card.assigned_to  # Guardamos la asignación vieja para comparar
     
-    # Verificar permisos
     if board.owner != request.user and not board.members.filter(id=request.user.id).exists():
         messages.error(request, 'Sin permiso')
         return redirect('board_detail', pk=board.id)
     
-    # Obtener miembros para el select de asignación
     members = list(board.members.all())
     if board.owner not in members:
         members.append(board.owner)
@@ -476,12 +528,23 @@ def edit_card(request, card_id):
     if request.method == 'POST':
         form = CardForm(request.POST, instance=card)
         if form.is_valid():
-            form.save()
+            updated_card = form.save()
+            
+            # 🔥 NOTIFICACIÓN: Si cambió el usuario asignado, notificar al nuevo
+            if updated_card.assigned_to and updated_card.assigned_to != old_assigned_to:
+                crear_notificacion(
+                    recipient=updated_card.assigned_to,
+                    sender=request.user,
+                    notification_type='task_assigned',
+                    message=f"{request.user.username} te asignó la tarea '{updated_card.title}' en '{board.name}'",
+                    board_id=board.id,
+                    card_id=updated_card.id
+                )
+                
             messages.success(request, f'Tarea "{card.title}" actualizada')
             return redirect('board_detail', pk=board.id)
     else:
         form = CardForm(instance=card)
-        # Personalizar el select de assigned_to con los miembros
         form.fields['assigned_to'].choices = [('', 'No asignar')] + [(u.id, u.username) for u in members]
     
     return render(request, 'boards/edit_card.html', {
@@ -492,7 +555,7 @@ def edit_card(request, card_id):
     })
 
 
-# ========== ACTUALIZAR POSICIÓN (AJAX) ==========
+# ========== ACTUALIZAR POSICIÓN DE LISTA (AJAX) ==========
 
 @login_required
 @require_http_methods(["POST"])
@@ -508,7 +571,6 @@ def update_list_position(request):
     
     list_obj = get_object_or_404(List, pk=list_id)
     
-    # Verificar permisos
     if list_obj.board.owner != request.user:
         membership = Membership.objects.filter(user=request.user, board=list_obj.board).first()
         if not membership or membership.role != 'admin':

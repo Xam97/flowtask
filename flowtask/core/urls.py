@@ -20,6 +20,9 @@ urlpatterns = [
     
     # Actividad reciente
     path('activity/', include('activity.urls')),
+
+    # Notificaciones
+    path('notifications/', include('notifications.urls')),
 ]
 
 # Servir archivos media en desarrollo

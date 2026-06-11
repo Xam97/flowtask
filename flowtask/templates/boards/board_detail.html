@@ -51,7 +51,7 @@
         <div class="list-header">
             <div>
                 <span class="list-title">{{ list.name }}</span>
-                <span class="list-badge ms-2">{{ list.cards.count }}</span>
+                <span class="list-badge ms-2" id="list-badge-{{ list.id }}">{{ list.cards.count }}</span>
             </div>
             <div class="list-actions">
                 <a href="{% url 'edit_list' list.id %}" class="btn btn-sm btn-link text-secondary">
@@ -98,7 +98,7 @@
                 </div>
             </div>
             {% empty %}
-            <div class="empty-cards">No hay tareas</div>
+            <div class="empty-cards empty-placeholder-{{ list.id }}">No hay tareas</div>
             {% endfor %}
         </div>
         
@@ -107,11 +107,10 @@
         </button>
     </div>
     
-    <!-- Modal para crear tarjeta en esta lista -->
     <div class="modal fade" id="addCardModal{{ list.id }}" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
-                <form method="POST" action="{% url 'create_card' list.id %}">
+                <form method="POST" action="{% url 'create_card' list.id %}" class="js-create-card-form" data-form-list-id="{{ list.id }}">
                     {% csrf_token %}
                     <div class="modal-header">
                         <h5 class="modal-title">Nueva Tarea en "{{ list.name }}"</h5>
@@ -156,7 +155,6 @@
     {% endfor %}
 </div>
 
-<!-- Modal: Agregar Lista -->
 <div class="modal fade" id="addListModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -178,7 +176,6 @@
     </div>
 </div>
 
-<!-- Modal: Agregar Miembro -->
 <div class="modal fade" id="addMemberModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
