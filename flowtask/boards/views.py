@@ -10,6 +10,7 @@ from django.views.decorators.csrf import csrf_protect
 from django.db import models
 from .models import Board, List, Card, Membership
 from django.contrib.auth.models import User
+from notifications.services import notify_member_added, notify_task_assigned
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from .serializers import UserRegistrationSerializer
@@ -47,8 +48,11 @@ def board_detail(request, pk):
         messages.error(request, 'No tienes permiso para ver este tablero')
         return redirect('dashboard')
     
-    # Obtener listas ordenadas por posición con sus tarjetas
-    lists = board.lists.all().prefetch_related('cards').order_by('position')
+    # Obtener listas ordenadas por posición con sus tarjetas y conteo de comentarios
+    lists = board.lists.all().prefetch_related(
+        'cards__assigned_to',
+        'cards__comments_card',
+    ).order_by('position')
     
     # Obtener miembros (evitando duplicados)
     members = list(board.members.all())
@@ -235,6 +239,7 @@ def create_card(request, list_id):
             assigned_user = User.objects.get(id=assigned_to_id)
             card.assigned_to = assigned_user
             card.save()
+            notify_task_assigned(assigned_user, card, request.user)
         except User.DoesNotExist:
             pass
     
@@ -332,6 +337,7 @@ def add_member(request, board_id):
             return redirect('board_detail', pk=board_id)
         
         Membership.objects.create(user=user, board=board, role=role)
+        notify_member_added(user, board, request.user)
         
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return JsonResponse({
@@ -474,9 +480,12 @@ def edit_card(request, card_id):
         members.append(board.owner)
     
     if request.method == 'POST':
+        old_assigned_id = card.assigned_to_id
         form = CardForm(request.POST, instance=card)
         if form.is_valid():
             form.save()
+            if card.assigned_to_id and card.assigned_to_id != old_assigned_id:
+                notify_task_assigned(card.assigned_to, card, request.user)
             messages.success(request, f'Tarea "{card.title}" actualizada')
             return redirect('board_detail', pk=board.id)
     else:

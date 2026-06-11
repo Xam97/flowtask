@@ -72,6 +72,12 @@ class BoardConsumer(AsyncJsonWebsocketConsumer):
     
     async def card_moved(self, event):
         await self.send_json({'type': 'card_moved', 'data': event['data']})
+
+    async def new_comment(self, event):
+        await self.send_json({'type': 'new_comment', 'data': event['data']})
+
+    async def comment_deleted(self, event):
+        await self.send_json({'type': 'comment_deleted', 'data': event['data']})
     
     @database_sync_to_async
     def check_board_access(self, user_id, board_id):
