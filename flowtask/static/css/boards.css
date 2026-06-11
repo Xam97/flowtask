@@ -1,5 +1,65 @@
 /* Estilos específicos para la vista de tableros Kanban */
 
+/* ========== HEADER DEL TABLERO ========== */
+.live-indicator {
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--text-gray);
+    margin-left: 0.5rem;
+    vertical-align: middle;
+    opacity: 0.5;
+    transition: all 0.3s;
+}
+
+.live-indicator i {
+    font-size: 0.5rem;
+    margin-right: 0.25rem;
+}
+
+.live-indicator.active {
+    opacity: 1;
+    color: #22c55e;
+}
+
+.live-indicator.active i {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+.member-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.25rem 0.75rem 0.25rem 0.25rem;
+    background: var(--white);
+    border: 1px solid var(--border-light);
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.member-chip.owner {
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    border-color: #fcd34d;
+}
+
+.member-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--primary-blue);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
 /* ========== VISTA KANBAN ========== */
 .kanban-container {
     display: flex;
@@ -12,16 +72,18 @@
 .kanban-list {
     min-width: 300px;
     width: 300px;
-    background: #f1f2f4;
-    border-radius: 12px;
+    background: #eef0f4;
+    border-radius: var(--radius-lg);
     padding: 0.75rem;
     display: flex;
     flex-direction: column;
     transition: all 0.2s;
+    border: 1px solid transparent;
 }
 
 .kanban-list:hover {
-    background: #e9eaec;
+    background: #e4e7ed;
+    border-color: var(--border-light);
 }
 
 .list-header {
@@ -69,23 +131,64 @@
 /* ========== TARJETAS ========== */
 .card-item {
     background: white;
-    border-radius: 8px;
-    padding: 0.75rem;
+    border-radius: var(--radius-md);
+    padding: 0.875rem;
     margin-bottom: 0.5rem;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-    cursor: grab;
+    box-shadow: var(--shadow-sm);
+    cursor: pointer;
     transition: all 0.2s;
     border: 1px solid transparent;
 }
 
+.card-item.card-assigned {
+    border-left: 3px solid var(--primary-blue);
+}
+
+.card-item.sortable-drag,
 .card-item:active {
     cursor: grabbing;
 }
 
 .card-item:hover {
-    background: #f8f9fa;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    border-color: #dee2e6;
+    background: #fafbfc;
+    box-shadow: var(--shadow-md);
+    border-color: var(--border-light);
+    transform: translateY(-1px);
+}
+
+.assignee-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.7rem;
+    color: var(--text-gray);
+    background: var(--light-blue);
+    padding: 0.15rem 0.5rem 0.15rem 0.15rem;
+    border-radius: 12px;
+}
+
+.assignee-avatar {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--primary-blue);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6rem;
+    font-weight: 600;
+}
+
+.comment-badge {
+    margin-left: 0.5rem;
+    color: var(--primary-blue);
+    font-size: 0.7rem;
+}
+
+.card-meta {
+    display: flex;
+    align-items: center;
 }
 
 .card-title {
@@ -168,11 +271,118 @@
     background: #dee2e6 !important;
 }
 
-.card-item {
-    cursor: grab;
-    transition: all 0.2s;
+/* ========== MODAL DE TAREA ========== */
+.card-detail-modal .modal-header {
+    background: linear-gradient(135deg, var(--light-blue), #f8f9ff);
+    border-bottom: 1px solid var(--border-light);
 }
 
-.card-item:active {
-    cursor: grabbing;
+.card-detail-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
 }
+
+.meta-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.85rem;
+    color: var(--text-gray);
+    background: var(--bg-gray);
+    padding: 0.4rem 0.75rem;
+    border-radius: 20px;
+}
+
+.meta-item i {
+    color: var(--primary-blue);
+}
+
+.card-detail-description {
+    background: var(--bg-gray);
+    padding: 1rem;
+    border-radius: var(--radius-md);
+    margin-bottom: 1.25rem;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: var(--text-dark);
+}
+
+.comments-section h6 {
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: var(--text-dark);
+}
+
+.comment-count-badge {
+    background: var(--primary-blue);
+    color: white;
+    font-size: 0.7rem;
+    padding: 0.1rem 0.5rem;
+    border-radius: 10px;
+    margin-left: 0.25rem;
+}
+
+.comments-container {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.comment-item {
+    background: var(--bg-gray);
+    border-radius: var(--radius-md);
+    padding: 0.875rem;
+    margin-bottom: 0.5rem;
+}
+
+.comment-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.4rem;
+}
+
+.comment-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-blue), var(--accent-purple));
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.comment-header strong {
+    display: block;
+    font-size: 0.85rem;
+}
+
+.comment-header small {
+    color: var(--text-gray);
+    font-size: 0.7rem;
+}
+
+.comment-item p {
+    margin: 0;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    padding-left: 2.5rem;
+}
+
+.comment-form .input-group textarea {
+    resize: none;
+    border-radius: var(--radius-md) 0 0 var(--radius-md);
+}
+
+.comment-form .input-group .btn {
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+
+.priority-label.priority-high { color: #dc3545; }
+.priority-label.priority-urgent { color: #fd7e14; }
+.priority-label.priority-medium { color: #d97706; }
+.priority-label.priority-low { color: #16a34a; }

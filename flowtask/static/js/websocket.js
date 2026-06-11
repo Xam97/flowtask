@@ -90,7 +90,8 @@ const FlowTaskWebSocket = (function() {
         console.log(`WebSocket ${type} conectado`);
         if (type === 'board') {
             reconnectAttempts = 0;
-            FlowTaskHelpers.showToast('Conectado en tiempo real', 'success');
+            const indicator = document.getElementById('liveIndicator');
+            if (indicator) indicator.classList.add('active');
         }
     }
     
@@ -300,8 +301,9 @@ const FlowTaskWebSocket = (function() {
      * Registra handlers para eventos
      */
     function on(event, callback) {
-        if (eventHandlers.hasOwnProperty(event)) {
-            eventHandlers[event] = callback;
+        const key = event.startsWith('on') ? event : `on${event.charAt(0).toUpperCase()}${event.slice(1)}`;
+        if (eventHandlers.hasOwnProperty(key)) {
+            eventHandlers[key] = callback;
         }
     }
     
@@ -386,11 +388,11 @@ const FlowTaskWebSocket = (function() {
      * Actualiza el badge de notificaciones
      */
     function updateNotificationBadge() {
-        const badge = document.querySelector('.notification-icon .badge');
+        const badge = document.getElementById('notificationBadge');
         if (badge) {
             const current = parseInt(badge.textContent) || 0;
             badge.textContent = current + 1;
-            badge.style.display = 'inline-block';
+            badge.style.display = 'inline-flex';
         }
     }
     

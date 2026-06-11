@@ -2,6 +2,8 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    # Agregá tus rutas acá, por ejemplo:
-    # path('', views.index, name='index'),
+    path('', views.notification_list, name='notification_list'),
+    path('unread-count/', views.unread_count, name='notification_unread_count'),
+    path('mark-all-read/', views.mark_all_read, name='notification_mark_all_read'),
+    path('<int:notification_id>/read/', views.mark_read, name='notification_mark_read'),
 ]
