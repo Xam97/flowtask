@@ -5,7 +5,6 @@ from django.contrib.auth.models import User
 
 
 class Notification(models.Model):
-    """Notificaciones para usuarios"""
     
     NOTIFICATION_TYPES = [
         ('card_moved', 'Tarjeta movida'),
