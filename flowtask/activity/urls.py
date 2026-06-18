@@ -2,6 +2,6 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    # Agregá tus rutas acá, por ejemplo:
-    # path('', views.index, name='index'),
+    path('', views.activity_list, name='activity'),
+    path('api/', views.activity_api, name='activity_api'),
 ]
