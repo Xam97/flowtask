@@ -65,10 +65,7 @@ def login_view(request):
                 # Redirigir a la página solicitada originalmente o dashboard
                 next_url = request.GET.get('next', 'dashboard')
                 return redirect(next_url)
-        # IMPORTANTE: NO usar messages.error aquí
-        # En su lugar, pasamos el error al formulario
         else:
-            # Agregar error al formulario para mostrarlo debajo del campo
             form.add_error('password', 'Usuario o contraseña incorrectos. Por favor, intenta nuevamente.')
     else:
         form = AuthenticationForm()
@@ -87,6 +84,39 @@ def logout_view(request):
     messages.info(request, 'Has cerrado sesión correctamente.')
     return redirect('login')
 
+
+# ========== PERFIL ==========
+@login_required
+def profile_view(request):
+    from boards.models import Card
+    from boards.utils import get_user_boards
+
+    user = request.user
+    boards = get_user_boards(user)
+    stats = {
+        'boards': boards.count(),
+        'tasks_created': Card.objects.filter(created_by=user).count(),
+        'tasks_assigned': Card.objects.filter(assigned_to=user, is_completed=False).count(),
+        'tasks_completed': Card.objects.filter(assigned_to=user, is_completed=True).count(),
+    }
+
+    return render(request, 'users/profile.html', {
+        'profile_user': user,
+        'stats': stats,
+    })
+
+
+# ========== PREFERENCIAS ==========
+@csrf_protect
+@login_required
+@require_http_methods(['GET', 'POST'])
+def preferences_view(request):
+    if request.method == 'POST':
+        messages.success(request, 'Preferencias guardadas correctamente')
+        return redirect('preferences')
+
+    return render(request, 'users/preferences.html')
+
 # ========== DASHBOARD (PROTEGIDO) ==========
 @login_required
 def dashboard_view(request):
@@ -94,14 +124,31 @@ def dashboard_view(request):
     Dashboard principal del usuario.
     Solo accesible para usuarios autenticados.
     """
-    # Obtener tableros del usuario (propios + donde es miembro)
-    from boards.models import Board
+
+    from boards.models import Card
+    from boards.utils import get_user_boards
+    from django.utils import timezone
     
     owned_boards = request.user.owned_boards.filter(is_archived=False)
-    member_boards = request.user.boards.filter(is_archived=False)
+    member_boards = request.user.boards.filter(is_archived=False).exclude(owner=request.user)
+
+    board_ids = list(get_user_boards(request.user).values_list('id', flat=True))
+    now = timezone.now()
     
-    context = {
+    stats = {
+        'total_boards': len(board_ids),
+        'pending_tasks': Card.objects.filter(list__board_id__in=board_ids, is_completed=False).count(),
+        'completed_tasks': Card.objects.filter(list__board_id__in=board_ids, is_completed=True).count(),
+        'due_soon': Card.objects.filter(
+            list__board_id__in=board_ids,
+            due_date__gte=now,
+            due_date__lte=now + timezone.timedelta(days=7),
+            is_completed=False,
+        ).count(),
+    }
+
+    return render(request, 'dashboard.html', {
         'owned_boards': owned_boards,
         'member_boards': member_boards,
-    }
-    return render(request, 'dashboard.html', context)
+        'stats': stats,
+    })
