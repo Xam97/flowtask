@@ -33,9 +33,9 @@
 
     async function loadNotifications() {
         try {
-            const response = await fetch('/notifications/', { credentials: 'same-origin' });
+            const response = await fetch('/notifications/api/get/', { credentials: 'same-origin' });
             const data = await response.json();
-            if (data.success) {
+            if (data.notifications) {
                 renderNotifications(data.notifications);
                 updateBadge(data.unread_count);
                 notificationsLoaded = true;
@@ -108,6 +108,8 @@
                 </a>
             `;
             list.prepend(item);
+
+            item.addEventListener('click', () => markAsRead(data.id));
         }
 
         const badge = document.getElementById('notificationBadge');
@@ -125,18 +127,33 @@
         badge.style.display = count > 0 ? 'inline-flex' : 'none';
     }
 
+    function formatDate(isoString) {
+        if (!isoString) return '';
+        const date = new Date(isoString);
+        return date.toLocaleDateString('es-PY', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+
     async function markAsRead(id) {
         try {
-            await fetch(`/notifications/${id}/read/`, {
+            const response = await fetch(`/notifications/api/mark/${id}/`, {
                 method: 'POST',
                 headers: { 'X-CSRFToken': FlowTaskHelpers.getCSRFToken() },
                 credentials: 'same-origin',
             });
-            const item = document.querySelector(`.notification-item[data-id="${id}"]`);
-            if (item) item.classList.remove('unread');
-            const response = await fetch('/notifications/unread-count/', { credentials: 'same-origin' });
             const data = await response.json();
-            updateBadge(data.unread_count);
+            
+            if (data.success) {
+                const item = document.querySelector(`.notification-item[data-id="${id}"]`);
+                if (item && item.classList.contains('unread')) {
+                    item.classList.remove('unread');
+                    
+                    const badge = document.getElementById('notificationBadge');
+                    if (badge) {
+                        const currentCount = Math.max(0, (parseInt(badge.textContent) || 0) - 1);
+                        updateBadge(currentCount);
+                    }
+                }
+            }
         } catch (error) {
             console.error('Error marcando notificación:', error);
         }
@@ -144,14 +161,17 @@
 
     async function markAllRead() {
         try {
-            const response = await fetch('/notifications/mark-all-read/', {
+            const response = await fetch('/notifications/api/mark-all/', {
                 method: 'POST',
                 headers: { 'X-CSRFToken': FlowTaskHelpers.getCSRFToken() },
                 credentials: 'same-origin',
             });
             const data = await response.json();
-            document.querySelectorAll('.notification-item.unread').forEach(el => el.classList.remove('unread'));
-            updateBadge(data.unread_count);
+
+            if (data.success) {
+                document.querySelectorAll('.notification-item.unread').forEach(el => el.classList.remove('unread'));
+                updateBadge(0);
+            }
         } catch (error) {
             console.error('Error:', error);
         }
