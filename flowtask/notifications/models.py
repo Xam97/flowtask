@@ -7,11 +7,11 @@ class Notification(models.Model):
     
     # Sincronizado exactamente con utils.py y notifications.js
     NOTIFICATION_TYPES = [
-        ('task_assigned', 'Tarea asignada'),
-        ('comment_added', 'Nuevo comentario'),
-        ('task_moved', 'Tarjeta movida'),
-        ('mention', 'Mención'),
+        ('card_assigned', 'Tarea asignada'),
+        ('new_comment', 'Nuevo comentario'),
+        ('card_moved', 'Tarjeta movida'),
         ('member_added', 'Miembro agregado'),
+        ('card_deleted', 'Tarjeta eliminada'),
     ]
     
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications_user')
@@ -37,6 +37,7 @@ class Activity(models.Model):
     """Registro de actividad reciente"""
     
     ACTION_TYPES = [
+        ('create_board', 'Creó tablero'),
         ('create_card', 'Creó tarea'),
         ('delete_card', 'Eliminó tarea'),
         ('move_card', 'Movió tarea'),
