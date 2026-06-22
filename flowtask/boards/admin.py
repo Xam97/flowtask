@@ -3,7 +3,7 @@
 # Optimizado para gestión de tableros, listas y tarjetas
 
 from django.contrib import admin
-from .models import Board, Membership, List, Card
+from .models import Board, Membership, List, Card, Label, CardLabel
 
 
 # ========== BOARD ADMIN ==========
