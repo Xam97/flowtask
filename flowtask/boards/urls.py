@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from . import search_views
 from rest_framework.routers import DefaultRouter
 from . import search_views
 

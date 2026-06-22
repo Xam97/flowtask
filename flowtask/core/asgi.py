@@ -22,7 +22,7 @@ class SessionAuthMiddleware(BaseMiddleware):
     
     async def __call__(self, scope, receive, send):
         print("=" * 50)
-        print("🔍 MIDDLEWARE: Entrando al middleware de sesión")
+        print(" MIDDLEWARE: Entrando al middleware de sesión")
         
         # Extraer cookies del scope de manera más robusta
         cookies = {}
@@ -30,7 +30,7 @@ class SessionAuthMiddleware(BaseMiddleware):
         
         if b'cookie' in headers:
             cookie_header = headers[b'cookie'].decode()
-            print(f"🔍 Cookie header completo: {cookie_header}")
+            print(f" Cookie header completo: {cookie_header}")
             
             # Parsear cookies correctamente (manejando espacios y formato)
             for cookie in cookie_header.split(';'):
@@ -43,9 +43,9 @@ class SessionAuthMiddleware(BaseMiddleware):
             
             # Buscar sessionid (posibles variaciones)
             session_key = cookies.get('sessionid') or cookies.get('session_id')
-            print(f"🔍 Session key encontrada: {session_key}")
+            print(f" Session key encontrada: {session_key}")
         else:
-            print("❌ No hay header 'cookie'")
+            print(" No hay header 'cookie'")
             session_key = None
         
         if session_key:
@@ -53,18 +53,18 @@ class SessionAuthMiddleware(BaseMiddleware):
                 user = await self.get_user_from_session(session_key)
                 if user:
                     scope['user'] = user
-                    print(f"✅ Usuario autenticado: {user.email}")
+                    print(f" Usuario autenticado: {user.email}")
                 else:
-                    print(f"❌ Usuario no encontrado para sesión: {session_key}")
+                    print(f" Usuario no encontrado para sesión: {session_key}")
                     from django.contrib.auth.models import AnonymousUser
                     scope['user'] = AnonymousUser()
             except Exception as e:
-                print(f"❌ Error: {e}")
+                print(f" Error: {e}")
                 from django.contrib.auth.models import AnonymousUser
                 scope['user'] = AnonymousUser()
         else:
-            print(f"❌ No se encontró 'sessionid' en cookies")
-            print(f"🔍 Cookies disponibles: {cookies}")
+            print(f" No se encontró 'sessionid' en cookies")
+            print(f" Cookies disponibles: {cookies}")
             from django.contrib.auth.models import AnonymousUser
             scope['user'] = AnonymousUser()
         
@@ -84,13 +84,13 @@ class SessionAuthMiddleware(BaseMiddleware):
                 print(f"✅ Usuario encontrado: {user.email}")
                 return user
             else:
-                print(f"❌ No hay _auth_user_id en sesión")
+                print(f" No hay _auth_user_id en sesión")
                 return None
         except Session.DoesNotExist:
-            print(f"❌ Sesión no encontrada: {session_key}")
+            print(f" Sesión no encontrada: {session_key}")
             return None
         except User.DoesNotExist:
-            print(f"❌ Usuario no encontrado para ID: {user_id}")
+            print(f" Usuario no encontrado para ID: {user_id}")
             return None
 
 # Configurar la aplicación

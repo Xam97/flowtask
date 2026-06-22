@@ -10,7 +10,7 @@ from django.views.decorators.csrf import csrf_protect
 from django.db import models
 from .models import Board, List, Card, Membership
 from django.contrib.auth.models import User
-from notifications.services import notify_member_added, notify_task_assigned
+from notifications.services import notify_member_added, notify_task_assigned, log_activity
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from .serializers import UserRegistrationSerializer
@@ -51,6 +51,7 @@ def board_detail(request, pk):
     lists = board.lists.all().prefetch_related(
         'cards__assigned_to',
         'cards__comments_card',
+        'cards__labels',
     ).order_by('position')
     
     members = list(board.members.all())
@@ -61,6 +62,7 @@ def board_detail(request, pk):
         'board': board,
         'lists': lists,
         'members': members,
+        'labels': board.labels.all(),
     }
     return render(request, 'boards/board_detail.html', context)
 
@@ -94,6 +96,11 @@ def create_board(request):
             board=board,
             position=(position + 1) * 10
         )
+
+    log_activity(
+        request.user, board.id, 'create_board',
+        f'Creó el tablero "{board.name}"',
+    )
     
     log_activity(request.user, board.id, 'create_board', f'Creó el tablero "{board.name}"')
     
@@ -162,7 +169,10 @@ def create_list(request, board_id):
         position=max_position + 10
     )
 
-    log_activity(request.user, board.id, 'create_list', f'Creó la lista "{name}"')
+    log_activity(
+        request.user, board.id, 'create_list',
+        f'Creó la lista "{name}"',
+    )
     
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return JsonResponse({
@@ -192,7 +202,10 @@ def delete_list(request, list_id):
     
     list_name = list_obj.name
     list_obj.delete()
-    log_activity(request.user, board_id, 'delete_list', f'Eliminó la lista "{list_name}"')
+    log_activity(
+        request.user, board_id, 'delete_list',
+        f'Eliminó la lista "{list_name}"',
+    )
     messages.success(request, 'Lista eliminada')
     return redirect('board_detail', pk=board_id)
 
@@ -314,21 +327,22 @@ def update_card_position(request):
     new_position = data.get('position')
     
     card = get_object_or_404(Card, pk=card_id)
-    old_list = card.list
-    board = card.list.board
-    
-    if board.owner != request.user and not board.members.filter(id=request.user.id).exists():
+    board_id = card.list.board.id
+
+    if card.list.board.owner != request.user and not card.list.board.members.filter(id=request.user.id).exists():
         return JsonResponse({'success': False, 'error': 'Sin permiso'}, status=403)
-    
-    cambio_de_lista = False
-    if new_list_id and int(new_list_id) != old_list.id:
+
+    old_list_name = card.list.name
+    moved = False
+
+    if new_list_id and new_list_id != card.list.id:
         new_list = get_object_or_404(List, pk=new_list_id)
         card.list = new_list
-        cambio_de_lista = True
-    
+        moved = True
+
     if new_position is not None:
         card.position = float(new_position)
-    
+
     card.save()
     
     # NOTIFICACIÓN: Tarea movida (notificar al asignado si no fue él quien la movió)
@@ -360,7 +374,10 @@ def delete_card(request, card_id):
     
     card_title = card.title
     card.delete()
-    log_activity(request.user, board_id, 'delete_card', f'Eliminó la tarea "{card_title}"')
+    log_activity(
+        request.user, board_id, 'delete_card',
+        f'Eliminó la tarea "{card_title}"',
+    )
     messages.success(request, 'Tarea eliminada')
     return redirect('board_detail', pk=board_id)
 
