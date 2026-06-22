@@ -35,6 +35,7 @@ class Activity(models.Model):
     """Registro de actividad reciente"""
     
     ACTION_TYPES = [
+        ('create_board', 'Creó tablero'),
         ('create_card', 'Creó tarea'),
         ('delete_card', 'Eliminó tarea'),
         ('move_card', 'Movió tarea'),

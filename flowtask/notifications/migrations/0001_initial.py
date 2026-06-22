@@ -1,0 +1,49 @@
+
+import django.db.models.deletion
+from django.conf import settings
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    initial = True
+
+    dependencies = [
+        migrations.swappable_dependency(settings.AUTH_USER_MODEL),
+    ]
+
+    operations = [
+        migrations.CreateModel(
+            name='Activity',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('board_id', models.IntegerField()),
+                ('card_id', models.IntegerField(blank=True, null=True)),
+                ('action', models.CharField(choices=[('create_card', 'Creó tarea'), ('delete_card', 'Eliminó tarea'), ('move_card', 'Movió tarea'), ('edit_card', 'Editó tarea'), ('add_comment', 'Comentó'), ('create_list', 'Creó lista'), ('delete_list', 'Eliminó lista'), ('add_member', 'Agregó miembro'), ('remove_member', 'Eliminó miembro')], max_length=20)),
+                ('description', models.CharField(max_length=500)),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='activities_user', to=settings.AUTH_USER_MODEL)),
+            ],
+            options={
+                'verbose_name_plural': 'Activities',
+                'ordering': ['-created_at'],
+            },
+        ),
+        migrations.CreateModel(
+            name='Notification',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('type', models.CharField(choices=[('card_moved', 'Tarjeta movida'), ('card_assigned', 'Tarea asignada'), ('new_comment', 'Nuevo comentario'), ('member_added', 'Miembro agregado'), ('card_deleted', 'Tarjeta eliminada')], max_length=20)),
+                ('title', models.CharField(max_length=200)),
+                ('message', models.TextField()),
+                ('board_id', models.IntegerField(blank=True, null=True)),
+                ('card_id', models.IntegerField(blank=True, null=True)),
+                ('is_read', models.BooleanField(default=False)),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='notifications_user', to=settings.AUTH_USER_MODEL)),
+            ],
+            options={
+                'ordering': ['-created_at'],
+            },
+        ),
+    ]
