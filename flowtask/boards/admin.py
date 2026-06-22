@@ -3,7 +3,7 @@
 # Optimizado para gestión de tableros, listas y tarjetas
 
 from django.contrib import admin
-from .models import Board, Membership, List, Card
+from .models import Board, Membership, List, Card, Label, CardLabel
 
 
 # ========== BOARD ADMIN ==========
@@ -46,3 +46,15 @@ class CardAdmin(admin.ModelAdmin):
     search_fields = ['title', 'description', 'assigned_to__username']
     readonly_fields = ['created_at', 'updated_at']
     date_hierarchy = 'created_at'
+
+
+@admin.register(Label)
+class LabelAdmin(admin.ModelAdmin):
+    list_display = ['name', 'color', 'board', 'created_at']
+    list_filter = ['board']
+    search_fields = ['name']
+
+
+@admin.register(CardLabel)
+class CardLabelAdmin(admin.ModelAdmin):
+    list_display = ['card', 'label', 'added_at']

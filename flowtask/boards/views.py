@@ -10,7 +10,11 @@ from django.views.decorators.csrf import csrf_protect
 from django.db import models
 from .models import Board, List, Card, Membership
 from django.contrib.auth.models import User
+<<<<<<< HEAD
 from notifications.services import notify_member_added, notify_task_assigned
+=======
+from notifications.services import notify_member_added, notify_task_assigned, log_activity
+>>>>>>> origin/pruebas
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from .serializers import UserRegistrationSerializer
@@ -52,6 +56,10 @@ def board_detail(request, pk):
     lists = board.lists.all().prefetch_related(
         'cards__assigned_to',
         'cards__comments_card',
+<<<<<<< HEAD
+=======
+        'cards__labels',
+>>>>>>> origin/pruebas
     ).order_by('position')
     
     # Obtener miembros (evitando duplicados)
@@ -63,6 +71,7 @@ def board_detail(request, pk):
         'board': board,
         'lists': lists,
         'members': members,
+        'labels': board.labels.all(),
     }
     return render(request, 'boards/board_detail.html', context)
 
@@ -97,6 +106,11 @@ def create_board(request):
             board=board,
             position=(position + 1) * 10
         )
+
+    log_activity(
+        request.user, board.id, 'create_board',
+        f'Creó el tablero "{board.name}"',
+    )
     
     # Verificar si es petición AJAX
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -164,6 +178,11 @@ def create_list(request, board_id):
         board=board,
         position=max_position + 10
     )
+
+    log_activity(
+        request.user, board.id, 'create_list',
+        f'Creó la lista "{name}"',
+    )
     
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return JsonResponse({
@@ -191,7 +210,12 @@ def delete_list(request, list_id):
         messages.error(request, 'Sin permiso para eliminar esta lista')
         return redirect('board_detail', pk=board_id)
     
+    list_name = list_obj.name
     list_obj.delete()
+    log_activity(
+        request.user, board_id, 'delete_list',
+        f'Eliminó la lista "{list_name}"',
+    )
     messages.success(request, 'Lista eliminada')
     return redirect('board_detail', pk=board_id)
 
@@ -242,6 +266,12 @@ def create_card(request, list_id):
             notify_task_assigned(assigned_user, card, request.user)
         except User.DoesNotExist:
             pass
+
+    log_activity(
+        request.user, board.id, 'create_card',
+        f'Creó la tarea "{title}" en "{list_obj.name}"',
+        card_id=card.id,
+    )
     
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return JsonResponse({
@@ -274,19 +304,31 @@ def update_card_position(request):
     new_position = data.get('position')
     
     card = get_object_or_404(Card, pk=card_id)
-    
+    board_id = card.list.board.id
+
     if card.list.board.owner != request.user and not card.list.board.members.filter(id=request.user.id).exists():
         return JsonResponse({'success': False, 'error': 'Sin permiso'}, status=403)
-    
+
+    old_list_name = card.list.name
+    moved = False
+
     if new_list_id and new_list_id != card.list.id:
         new_list = get_object_or_404(List, pk=new_list_id)
         card.list = new_list
-    
+        moved = True
+
     if new_position is not None:
         card.position = float(new_position)
-    
+
     card.save()
-    
+
+    if moved:
+        log_activity(
+            request.user, board_id, 'move_card',
+            f'Movió "{card.title}" de "{old_list_name}" a "{card.list.name}"',
+            card_id=card.id,
+        )
+
     return JsonResponse({'success': True})
 
 
@@ -303,7 +345,12 @@ def delete_card(request, card_id):
         messages.error(request, 'Sin permiso para eliminar esta tarea')
         return redirect('board_detail', pk=board_id)
     
+    card_title = card.title
     card.delete()
+    log_activity(
+        request.user, board_id, 'delete_card',
+        f'Eliminó la tarea "{card_title}"',
+    )
     messages.success(request, 'Tarea eliminada')
     return redirect('board_detail', pk=board_id)
 
@@ -484,6 +531,14 @@ def edit_card(request, card_id):
         form = CardForm(request.POST, instance=card)
         if form.is_valid():
             form.save()
+<<<<<<< HEAD
+=======
+            log_activity(
+                request.user, board.id, 'edit_card',
+                f'Editó la tarea "{card.title}"',
+                card_id=card.id,
+            )
+>>>>>>> origin/pruebas
             if card.assigned_to_id and card.assigned_to_id != old_assigned_id:
                 notify_task_assigned(card.assigned_to, card, request.user)
             messages.success(request, f'Tarea "{card.title}" actualizada')

@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from . import search_views
 from rest_framework.routers import DefaultRouter
 
 router = DefaultRouter()
@@ -31,4 +32,12 @@ urlpatterns = [
     # Miembros
     path('<int:board_id>/members/add/', views.add_member, name='add_member'),
     path('members/<int:membership_id>/remove/', views.remove_member, name='remove_member'),
+
+    path('search/', search_views.search_view, name='search'),
+    path('search/api/', search_views.search_api, name='search_api'),
+    path('calendar/', search_views.calendar_view, name='calendar'),
+    path('labels/', search_views.labels_view, name='labels'),
+    path('labels/create/', search_views.create_label, name='create_label'),
+    path('labels/<int:label_id>/delete/', search_views.delete_label, name='delete_label'),
+    path('cards/<int:card_id>/labels/<int:label_id>/toggle/', search_views.toggle_card_label, name='toggle_card_label'),
 ]

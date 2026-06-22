@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+
+{% block title %}Actividad | FlowTask{% endblock %}
+
+{% block content %}
+<div class="page-content">
+    <div class="page-header">
+        <div>
+            <h1><i class="fas fa-stream"></i> Registro de Actividad</h1>
+            <p class="subtitle">Historial de acciones en tus tableros</p>
+        </div>
+    </div>
+
+    <div class="filter-bar">
+        <form method="GET" class="d-flex gap-2 align-items-center">
+            <select name="board" class="form-select form-select-sm" onchange="this.form.submit()">
+                <option value="">Todos los tableros</option>
+                {% for board in boards %}
+                <option value="{{ board.id }}" {% if selected_board == board.id|stringformat:"s" %}selected{% endif %}>
+                    {{ board.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </form>
+    </div>
+
+    <div class="panel">
+        <div class="activity-timeline">
+            {% for activity in activities %}
+            <div class="activity-item">
+                <div class="activity-dot {% if 'create' in activity.action %}create{% elif 'delete' in activity.action %}delete{% elif 'move' in activity.action %}move{% elif 'edit' in activity.action %}edit{% elif 'comment' in activity.action %}comment{% elif 'member' in activity.action %}member{% else %}default{% endif %}">
+                    {% if 'create' in activity.action %}<i class="fas fa-plus"></i>
+                    {% elif 'delete' in activity.action %}<i class="fas fa-trash"></i>
+                    {% elif 'move' in activity.action %}<i class="fas fa-arrows-alt"></i>
+                    {% elif 'edit' in activity.action %}<i class="fas fa-pen"></i>
+                    {% elif 'comment' in activity.action %}<i class="fas fa-comment"></i>
+                    {% elif 'member' in activity.action %}<i class="fas fa-user-plus"></i>
+                    {% else %}<i class="fas fa-circle"></i>{% endif %}
+                </div>
+                <div class="activity-body">
+                    <span class="activity-user">{{ activity.user.username }}</span>
+                    <span class="activity-badge">{{ activity.get_action_display }}</span>
+                    <div class="activity-desc">{{ activity.description }}</div>
+                    <div class="activity-time">{{ activity.created_at|date:"d M Y, H:i" }}</div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="notification-empty">
+                <i class="fas fa-stream fa-2x mb-2 d-block" style="opacity:0.3;"></i>
+                No hay actividad registrada aún. Las acciones en tableros aparecerán aquí.
+            </div>
+            {% endfor %}
+        </div>
+
+        {% if activities.has_other_pages %}
+        <div class="pagination-wrapper">
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    {% if activities.has_previous %}
+                    <li class="page-item"><a class="page-link" href="?page={{ activities.previous_page_number }}{% if selected_board %}&board={{ selected_board }}{% endif %}">&laquo;</a></li>
+                    {% endif %}
+                    <li class="page-item active"><span class="page-link">{{ activities.number }} / {{ activities.paginator.num_pages }}</span></li>
+                    {% if activities.has_next %}
+                    <li class="page-item"><a class="page-link" href="?page={{ activities.next_page_number }}{% if selected_board %}&board={{ selected_board }}{% endif %}">&raquo;</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

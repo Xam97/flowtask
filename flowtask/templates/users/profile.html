@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block title %}Mi Perfil | FlowTask{% endblock %}
+
+{% block content %}
+<div class="page-content">
+    <div class="page-header">
+        <div>
+            <h1><i class="fas fa-user"></i> Mi Perfil</h1>
+        </div>
+    </div>
+
+    <div class="profile-layout">
+        <div class="profile-card">
+            <div class="profile-avatar">{{ profile_user.username|make_list|first|upper }}</div>
+            <div class="profile-name">{{ profile_user.username }}</div>
+            <div class="profile-email">{{ profile_user.email|default:"Sin email registrado" }}</div>
+            <div style="margin-top:0.75rem;font-size:0.75rem;color:var(--text-muted);">
+                Miembro desde {{ profile_user.date_joined|date:"M Y" }}
+            </div>
+        </div>
+
+        <div>
+            <div class="profile-stats-grid">
+                <div class="stat-card blue">
+                    <div class="stat-icon blue"><i class="fas fa-th-large"></i></div>
+                    <div class="stat-info">
+                        <div class="stat-number">{{ stats.boards }}</div>
+                        <div class="stat-label">Tableros</div>
+                    </div>
+                </div>
+                <div class="stat-card green">
+                    <div class="stat-icon green"><i class="fas fa-plus-circle"></i></div>
+                    <div class="stat-info">
+                        <div class="stat-number">{{ stats.tasks_created }}</div>
+                        <div class="stat-label">Tareas creadas</div>
+                    </div>
+                </div>
+                <div class="stat-card orange">
+                    <div class="stat-icon orange"><i class="fas fa-clock"></i></div>
+                    <div class="stat-info">
+                        <div class="stat-number">{{ stats.tasks_assigned }}</div>
+                        <div class="stat-label">Asignadas pendientes</div>
+                    </div>
+                </div>
+                <div class="stat-card purple">
+                    <div class="stat-icon purple"><i class="fas fa-check"></i></div>
+                    <div class="stat-info">
+                        <div class="stat-number">{{ stats.tasks_completed }}</div>
+                        <div class="stat-label">Completadas</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
