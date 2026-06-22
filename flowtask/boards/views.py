@@ -95,6 +95,8 @@ def create_board(request):
             position=(position + 1) * 10
         )
     
+    log_activity(request.user, board.id, 'create_board', f'Creó el tablero "{board.name}"')
+    
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return JsonResponse({
             'success': True,
@@ -159,6 +161,8 @@ def create_list(request, board_id):
         board=board,
         position=max_position + 10
     )
+
+    log_activity(request.user, board.id, 'create_list', f'Creó la lista "{name}"')
     
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return JsonResponse({
@@ -186,7 +190,9 @@ def delete_list(request, list_id):
         messages.error(request, 'Sin permiso para eliminar esta lista')
         return redirect('board_detail', pk=board_id)
     
+    list_name = list_obj.name
     list_obj.delete()
+    log_activity(request.user, board_id, 'delete_list', f'Eliminó la lista "{list_name}"')
     messages.success(request, 'Lista eliminada')
     return redirect('board_detail', pk=board_id)
 
@@ -229,7 +235,7 @@ def create_card(request, list_id):
     card = Card.objects.create(
         title=title,
         description=description,
-        priority=priority,  # 🔥 GUARDADO: Se persiste en la base de datos
+        priority=priority,  # GUARDADO: Se persiste en la base de datos
         list=list_obj,
         created_by=request.user,
         position=max_position + 10
@@ -253,6 +259,8 @@ def create_card(request, list_id):
         except User.DoesNotExist:
             pass
 
+    log_activity(request.user, board.id, 'create_card', f'Creó la tarea "{title}"', card_id=card.id)
+
     # TRANSMISIÓN EN VIVO: Envía la tarjeta al WebSocket del Tablero para pintarla en el Kanban
     try:
         channel_layer = get_channel_layer()
@@ -264,7 +272,7 @@ def create_card(request, list_id):
                     'card_id': card.id,
                     'title': card.title,
                     'description': card.description,
-                    'priority': card.priority,  # 🔥 TRANSMITIDO: Crítico para que dragdrop.js pinte las clases CSS de prioridad
+                    'priority': card.priority,  # TRANSMITIDO: Crítico para que dragdrop.js pinte las clases CSS de prioridad
                     'list_id': list_obj.id,
                     'created_by': card.created_by.username,
                     'assigned_to': card.assigned_to.username if card.assigned_to else None,
@@ -350,7 +358,9 @@ def delete_card(request, card_id):
         messages.error(request, 'Sin permiso para eliminar esta tarea')
         return redirect('board_detail', pk=board_id)
     
+    card_title = card.title
     card.delete()
+    log_activity(request.user, board_id, 'delete_card', f'Eliminó la tarea "{card_title}"')
     messages.success(request, 'Tarea eliminada')
     return redirect('board_detail', pk=board_id)
 
@@ -536,6 +546,7 @@ def edit_card(request, card_id):
         form = CardForm(request.POST, instance=card)
         if form.is_valid():
             updated_card = form.save()
+            log_activity(request.user, board.id, 'edit_card', f'Editó la tarea "{card.title}"', card_id=card.id)            
             
             # NOTIFICACIÓN: Si cambió el usuario asignado, notificar al nuevo
             if updated_card.assigned_to and updated_card.assigned_to != old_assigned_to:
