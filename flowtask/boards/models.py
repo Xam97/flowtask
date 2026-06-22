@@ -104,3 +104,43 @@ class Card(models.Model):
             )['position__max'] or 0
             self.position = (max_position or 0) + 10
         super().save(*args, **kwargs)
+
+    @property
+    def board(self):
+        return self.list.board
+
+
+class Label(models.Model):
+    """Etiqueta de color asociada a un tablero."""
+    COLOR_CHOICES = [
+        ('#579bfc', 'Azul'),
+        ('#00c875', 'Verde'),
+        ('#fdab3d', 'Naranja'),
+        ('#e2445c', 'Rojo'),
+        ('#a25ddc', 'Morado'),
+        ('#ff642e', 'Coral'),
+        ('#ffcb00', 'Amarillo'),
+        ('#0086c0', 'Cian'),
+    ]
+
+    name = models.CharField(max_length=50, validators=[MinLengthValidator(2)])
+    color = models.CharField(max_length=7, default='#579bfc')
+    board = models.ForeignKey(Board, on_delete=models.CASCADE, related_name='labels')
+    cards = models.ManyToManyField(Card, through='CardLabel', related_name='labels')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['name']
+        unique_together = ['name', 'board']
+
+    def __str__(self):
+        return f"{self.name} ({self.board.name})"
+
+
+class CardLabel(models.Model):
+    card = models.ForeignKey(Card, on_delete=models.CASCADE)
+    label = models.ForeignKey(Label, on_delete=models.CASCADE)
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ['card', 'label']
