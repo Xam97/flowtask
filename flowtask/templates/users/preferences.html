@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+
+{% block title %}Preferencias | FlowTask{% endblock %}
+
+{% block content %}
+<div class="page-content">
+    <div class="page-header">
+        <div>
+            <h1><i class="fas fa-sliders-h"></i> Preferencias</h1>
+            <p class="subtitle">Personaliza tu experiencia en FlowTask</p>
+        </div>
+    </div>
+
+    <div class="pref-section">
+        <h3><i class="fas fa-palette me-1"></i> Tema de la interfaz</h3>
+        <div class="theme-options">
+            <div class="theme-option" data-theme-value="light" id="themeLight">
+                <div class="theme-preview theme-preview-light">
+                    <div class="preview-bar"></div>
+                    <div class="preview-content"></div>
+                </div>
+                <strong>Claro</strong>
+            </div>
+            <div class="theme-option" data-theme-value="dark" id="themeDark">
+                <div class="theme-preview theme-preview-dark">
+                    <div class="preview-bar"></div>
+                    <div class="preview-content"></div>
+                </div>
+                <strong>Oscuro</strong>
+            </div>
+            <div class="theme-option" data-theme-value="auto" id="themeAuto">
+                <div class="theme-preview theme-preview-auto"></div>
+                <strong>Sistema</strong>
+            </div>
+        </div>
+    </div>
+
+    <div class="pref-section">
+        <h3><i class="fas fa-bell me-1"></i> Notificaciones</h3>
+        <div class="form-check form-switch mb-2">
+            <input class="form-check-input" type="checkbox" id="prefNotifSound" checked disabled>
+            <label class="form-check-label" for="prefNotifSound">Notificaciones en tiempo real (WebSocket)</label>
+        </div>
+        <p style="font-size:0.75rem;color:var(--text-muted);margin:0;">Las notificaciones se reciben automáticamente cuando estás conectado.</p>
+    </div>
+
+    <div class="pref-section">
+        <h3><i class="fas fa-columns me-1"></i> Sidebar</h3>
+        <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="prefSidebarCollapsed">
+            <label class="form-check-label" for="prefSidebarCollapsed">Sidebar colapsada por defecto</label>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    const saved = localStorage.getItem('flowtask-theme') || 'light';
+    document.querySelectorAll('.theme-option').forEach(opt => {
+        if (opt.dataset.themeValue === saved) opt.classList.add('active');
+        opt.addEventListener('click', () => {
+            const val = opt.dataset.themeValue;
+            localStorage.setItem('flowtask-theme', val);
+            document.querySelectorAll('.theme-option').forEach(o => o.classList.remove('active'));
+            opt.classList.add('active');
+            if (window.FlowTaskTheme) FlowTaskTheme.apply(val);
+        });
+    });
+
+    const sidebarPref = localStorage.getItem('sidebarCollapsed') === 'true';
+    const checkbox = document.getElementById('prefSidebarCollapsed');
+    if (checkbox) {
+        checkbox.checked = sidebarPref;
+        checkbox.addEventListener('change', () => {
+            localStorage.setItem('sidebarCollapsed', checkbox.checked);
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar) sidebar.classList.toggle('collapsed', checkbox.checked);
+        });
+    }
+})();
+</script>
+{% endblock %}

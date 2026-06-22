@@ -1,112 +1,122 @@
-{# Dashboard principal - Muestra todos los tableros del usuario #}
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Dashboard{% endblock %}
+{% block title %}Dashboard | FlowTask{% endblock %}
 
 {% block content %}
 <div class="dashboard-container">
     <div class="dashboard-header">
-        <h1>
-            <i class="fas fa-chalkboard"></i>
-            Mis Tableros
-        </h1>
+        <div>
+            <h1><i class="fas fa-th-large"></i> Mis Tableros</h1>
+            <p class="subtitle">Gestiona tus proyectos y colaboraciones</p>
+        </div>
         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createBoardModal">
-            <i class="fas fa-plus"></i>
-            Nuevo Tablero
+            <i class="fas fa-plus"></i> Nuevo Tablero
         </button>
     </div>
-    
-    {# Tableros de los que soy propietario #}
+
+    {% if stats %}
+    <div class="stats-row">
+        <div class="stat-card blue">
+            <div class="stat-icon blue"><i class="fas fa-th-large"></i></div>
+            <div class="stat-info">
+                <div class="stat-number">{{ stats.total_boards }}</div>
+                <div class="stat-label">Tableros activos</div>
+            </div>
+        </div>
+        <div class="stat-card orange">
+            <div class="stat-icon orange"><i class="fas fa-clock"></i></div>
+            <div class="stat-info">
+                <div class="stat-number">{{ stats.pending_tasks }}</div>
+                <div class="stat-label">Tareas pendientes</div>
+            </div>
+        </div>
+        <div class="stat-card green">
+            <div class="stat-icon green"><i class="fas fa-check-circle"></i></div>
+            <div class="stat-info">
+                <div class="stat-number">{{ stats.completed_tasks }}</div>
+                <div class="stat-label">Completadas</div>
+            </div>
+        </div>
+        <div class="stat-card purple">
+            <div class="stat-icon purple"><i class="fas fa-calendar-day"></i></div>
+            <div class="stat-info">
+                <div class="stat-number">{{ stats.due_soon }}</div>
+                <div class="stat-label">Vencen pronto</div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     {% if owned_boards %}
     <div class="boards-section">
-        <h2>Propietario</h2>
+        <div class="section-header">
+            <h2><i class="fas fa-crown me-1"></i> Propietario</h2>
+            <span class="count-badge">{{ owned_boards|length }}</span>
+        </div>
         <div class="boards-grid">
             {% for board in owned_boards %}
-            <div class="board-card" data-board-id="{{ board.id }}">
-                <div class="board-card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+            {% with total=board.get_card_count completed=board.lists.all %}
+            <div class="board-card" data-board-id="{{ board.id }}" data-board-name="{{ board.name }}">
+                <div class="board-card-header">
+                    <div class="board-gradient" style="background: linear-gradient(135deg, hsl({{ forloop.counter0|add:220 }},70%,55%) 0%, hsl({{ forloop.counter0|add:260 }},60%,45%) 100%);"></div>
                     <span class="board-icon"><i class="fas fa-crown"></i></span>
                 </div>
                 <div class="board-card-body">
                     <h3>{{ board.name }}</h3>
-                    <p>{{ board.description|truncatechars:80 }}</p>
+                    <p>{{ board.description|default:"Sin descripción"|truncatechars:60 }}</p>
                     <div class="board-stats">
                         <span><i class="fas fa-list"></i> {{ board.lists.count }} listas</span>
                         <span><i class="fas fa-tasks"></i> {{ board.get_card_count }} tareas</span>
                     </div>
                 </div>
                 <div class="board-card-footer">
-                    <a href="{% url 'board_detail' board.id %}" class="btn btn-sm btn-outline-primary">Abrir Tablero</a>
-                    <button class="btn btn-sm btn-icon"><i class="fas fa-ellipsis-v"></i></button>
+                    <a href="{% url 'board_detail' board.id %}" class="btn btn-sm btn-outline-primary board-open-link">Abrir</a>
+                    <a href="{% url 'edit_board' board.id %}" class="btn btn-sm btn-icon" title="Editar"><i class="fas fa-pen"></i></a>
                 </div>
             </div>
+            {% endwith %}
             {% endfor %}
         </div>
     </div>
     {% else %}
     <div class="empty-state">
-        <i class="fas fa-chalkboard"></i>
-        <p>No tienes tableros aún.</p>
+        <i class="fas fa-th-large"></i>
+        <p>No tienes tableros aún. ¡Crea tu primer proyecto!</p>
         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createBoardModal">
-            Crear tu primer tablero
+            <i class="fas fa-plus"></i> Crear tablero
         </button>
     </div>
     {% endif %}
-    
-    {# Tableros donde soy miembro #}
+
     {% if member_boards %}
     <div class="boards-section">
-        <h2>Colaboraciones</h2>
+        <div class="section-header">
+            <h2><i class="fas fa-users me-1"></i> Colaboraciones</h2>
+            <span class="count-badge">{{ member_boards|length }}</span>
+        </div>
         <div class="boards-grid">
             {% for board in member_boards %}
-            <div class="board-card">
-                <div class="board-card-header" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+            <div class="board-card" data-board-id="{{ board.id }}" data-board-name="{{ board.name }}">
+                <div class="board-card-header">
+                    <div class="board-gradient" style="background: linear-gradient(135deg, hsl({{ forloop.counter0|add:300 }},65%,55%) 0%, hsl({{ forloop.counter0|add:330 }},55%,45%) 100%);"></div>
                     <span class="board-icon"><i class="fas fa-users"></i></span>
                 </div>
                 <div class="board-card-body">
                     <h3>{{ board.name }}</h3>
-                    <p>{{ board.description|truncatechars:80 }}</p>
+                    <p>{{ board.description|default:"Sin descripción"|truncatechars:60 }}</p>
                     <div class="board-stats">
                         <span><i class="fas fa-list"></i> {{ board.lists.count }} listas</span>
                         <span><i class="fas fa-tasks"></i> {{ board.get_card_count }} tareas</span>
                     </div>
                 </div>
                 <div class="board-card-footer">
-                    <a href="{% url 'board_detail' board.id %}" class="btn btn-sm btn-outline-primary">Abrir Tablero</a>
-                    <button class="btn btn-sm btn-icon"><i class="fas fa-ellipsis-v"></i></button>
+                    <a href="{% url 'board_detail' board.id %}" class="btn btn-sm btn-outline-primary board-open-link">Abrir</a>
                 </div>
             </div>
             {% endfor %}
         </div>
     </div>
     {% endif %}
-</div>
-
-<div class="modal fade" id="createBoardModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Crear Nuevo Tablero</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="POST" action="{% url 'create_board' %}">
-                {% csrf_token %}
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="boardName" class="form-label">Nombre del tablero</label>
-                        <input type="text" name="name" id="boardName" class="form-control" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="boardDescription" class="form-label">Descripción (opcional)</label>
-                        <textarea name="description" id="boardDescription" class="form-control" rows="3"></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">Crear Tablero</button>
-                </div>
-            </form>
-        </div>
-    </div>
 </div>
 {% endblock %}
