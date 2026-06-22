@@ -52,7 +52,7 @@ def mark_as_read(request, notification_id):
     # CAMBIO: recipient → user
     notification = get_object_or_404(Notification, id=notification_id, user=request.user)
     notification.is_read = True
-    notification.save()
+    notification.save(update_fields=['is_read'])
     return JsonResponse({'success': True})
 
 
