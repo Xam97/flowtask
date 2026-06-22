@@ -4,7 +4,6 @@ from django.db import models
 from django.contrib.auth.models import User
 
 class Notification(models.Model):
-    """Notificaciones para usuarios"""
     
     # Sincronizado exactamente con utils.py y notifications.js
     NOTIFICATION_TYPES = [

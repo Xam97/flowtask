@@ -10,6 +10,9 @@
             <h1 class="h3 mb-1">
                 <i class="fas fa-chalkboard me-2"></i>
                 {{ board.name }}
+                <span class="live-indicator" id="liveIndicator" title="Conexión en tiempo real">
+                    <i class="fas fa-circle"></i> En vivo
+                </span>
                 <a href="{% url 'edit_board' board.id %}" class="btn btn-sm btn-link text-secondary">
                     <i class="fas fa-edit"></i>
                 </a>
@@ -22,7 +25,7 @@
             <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addMemberModal">
                 <i class="fas fa-user-plus"></i> Invitar
             </button>
-            <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#addListModal">
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addListModal">
                 <i class="fas fa-plus"></i> Nueva Lista
             </button>
         </div>
@@ -31,13 +34,14 @@
     <div class="board-members mt-3">
         <small class="text-muted">Miembros:</small>
         <div class="d-flex flex-wrap gap-2 mt-1">
-            <span class="badge bg-primary">
-                <i class="fas fa-crown me-1"></i>
+            <span class="member-chip owner">
+                <span class="member-avatar">{{ board.owner.username|first|upper }}</span>
                 {{ board.owner.username }}
+                <i class="fas fa-crown ms-1"></i>
             </span>
             {% for member in board.members.all %}
-                <span class="badge bg-secondary">
-                    <i class="fas fa-user me-1"></i>
+                <span class="member-chip">
+                    <span class="member-avatar">{{ member.username|first|upper }}</span>
                     {{ member.username }}
                 </span>
             {% endfor %}
@@ -68,16 +72,16 @@
         
         <div class="cards-container" data-list-id="{{ list.id }}">
             {% for card in list.cards.all %}
-            <div class="card-item" data-card-id="{{ card.id }}" data-position="{{ card.position }}">
+            <div class="card-item {% if card.assigned_to %}card-assigned{% endif %}" data-card-id="{{ card.id }}" data-position="{{ card.position }}">
                 <div class="card-title">
                     <span>{{ card.title }}</span>
                     <div class="card-actions">
-                        <a href="{% url 'edit_card' card.id %}" class="btn btn-sm btn-link text-secondary">
+                        <a href="{% url 'edit_card' card.id %}" class="btn btn-sm btn-link text-secondary" title="Editar">
                             <i class="fas fa-edit fa-xs"></i>
                         </a>
                         <form method="POST" action="{% url 'delete_card' card.id %}" style="display: inline;">
                             {% csrf_token %}
-                            <button type="submit" class="btn btn-sm btn-link text-danger" onclick="return confirm('¿Eliminar esta tarea?');">
+                            <button type="submit" class="btn btn-sm btn-link text-danger" onclick="return confirm('¿Eliminar esta tarea?'); event.stopPropagation();">
                                 <i class="fas fa-trash-alt fa-xs"></i>
                             </button>
                         </form>
@@ -87,14 +91,21 @@
                     <div class="card-description">{{ card.description|truncatechars:60 }}</div>
                 {% endif %}
                 <div class="card-footer">
-                    <div>
+                    <div class="card-meta">
                         <span class="priority-badge priority-{{ card.priority }}"></span>
                         <small>{{ card.get_priority_display }}</small>
+                        {% if card.comments_card.count %}
+                            <span class="comment-badge"><i class="fas fa-comment"></i> {{ card.comments_card.count }}</span>
+                        {% endif %}
                     </div>
-                    <small>
-                        <i class="fas fa-user me-1"></i>
-                        {{ card.created_by.username }}
-                    </small>
+                    {% if card.assigned_to %}
+                        <span class="assignee-chip" title="Asignado a {{ card.assigned_to.username }}">
+                            <span class="assignee-avatar">{{ card.assigned_to.username|first|upper }}</span>
+                            {{ card.assigned_to.username }}
+                        </span>
+                    {% else %}
+                        <small class="text-muted"><i class="fas fa-user-slash"></i> Sin asignar</small>
+                    {% endif %}
                 </div>
             </div>
             {% empty %}
@@ -135,7 +146,7 @@
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Asignar a</label>
+                            <label class="form-label">Asignar a <small class="text-muted">(requerido para comentarios)</small></label>
                             <select name="assigned_to" class="form-select">
                                 <option value="">No asignar</option>
                                 {% for member in members %}
@@ -203,5 +214,31 @@
     </div>
 </div>
 
-<script src="{% static 'js/dragdrop.js' %}"></script>
+<!-- Modal: Detalle de tarea con comentarios -->
+<div class="modal fade" id="cardDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-scrollable modal-lg">
+        <div class="modal-content card-detail-modal">
+            <div class="modal-header">
+                <h5 class="modal-title" id="cardModalTitle">Tarea</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="cardModalBody"></div>
+            <div class="modal-footer flex-column align-items-stretch">
+                <form id="cardCommentForm" class="comment-form">
+                    <div class="input-group">
+                        <textarea class="form-control" rows="2" placeholder="Escribe un comentario..." required></textarea>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                    <small class="text-muted mt-1 d-block">Los comentarios solo están disponibles en tareas asignadas.</small>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/comments.js' %}"></script>
 {% endblock %}

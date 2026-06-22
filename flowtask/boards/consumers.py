@@ -73,16 +73,11 @@ class BoardConsumer(AsyncJsonWebsocketConsumer):
     async def card_moved(self, event):
         await self.send_json({'type': 'card_moved', 'data': event['data']})
 
-    # 🔥 NUEVO MÉTODO: Captura el group_send enviado desde views.py create_card
-    async def card_created_live(self, event):
-        """
-        Recibe el evento de creación de tarjeta enviado al canal del tablero
-        y lo retransmite en formato JSON a todos los navegadores conectados.
-        """
-        await self.send_json({
-            'type': 'card_created_live',
-            'data': event['data']
-        })
+    async def new_comment(self, event):
+        await self.send_json({'type': 'new_comment', 'data': event['data']})
+
+    async def comment_deleted(self, event):
+        await self.send_json({'type': 'comment_deleted', 'data': event['data']})
     
     @database_sync_to_async
     def check_board_access(self, user_id, board_id):

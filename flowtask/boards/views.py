@@ -10,11 +10,12 @@ from django.views.decorators.csrf import csrf_protect
 from django.db import models
 from .models import Board, List, Card, Membership
 from django.contrib.auth.models import User
+from notifications.services import notify_member_added, notify_task_assigned
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from .serializers import UserRegistrationSerializer
 
-# 🔥 IMPORTACIÓN DE LA UTILERÍA DE NOTIFICACIONES
+# IMPORTACIÓN DE LA UTILERÍA DE NOTIFICACIONES
 from notifications.utils import crear_notificacion
 
 
@@ -46,7 +47,11 @@ def board_detail(request, pk):
         messages.error(request, 'No tienes permiso para ver este tablero')
         return redirect('dashboard')
     
-    lists = board.lists.all().prefetch_related('cards').order_by('position')
+    # Obtener listas ordenadas por posición con sus tarjetas y conteo de comentarios
+    lists = board.lists.all().prefetch_related(
+        'cards__assigned_to',
+        'cards__comments_card',
+    ).order_by('position')
     
     members = list(board.members.all())
     if board.owner not in members:
@@ -236,7 +241,7 @@ def create_card(request, list_id):
             card.assigned_to = assigned_user
             card.save()
             
-            # 🔥 NOTIFICACIÓN PERSONAL: Alerta en la campana de notificaciones del destinatario
+            # NOTIFICACIÓN PERSONAL: Alerta en la campana de notificaciones del destinatario
             crear_notificacion(
                 recipient=assigned_user,
                 sender=request.user,
@@ -248,7 +253,7 @@ def create_card(request, list_id):
         except User.DoesNotExist:
             pass
 
-    # 🔥 TRANSMISIÓN EN VIVO: Envía la tarjeta al WebSocket del Tablero para pintarla en el Kanban
+    # TRANSMISIÓN EN VIVO: Envía la tarjeta al WebSocket del Tablero para pintarla en el Kanban
     try:
         channel_layer = get_channel_layer()
         async_to_sync(channel_layer.group_send)(
@@ -318,7 +323,7 @@ def update_card_position(request):
     
     card.save()
     
-    # 🔥 NOTIFICACIÓN: Tarea movida (notificar al asignado si no fue él quien la movió)
+    # NOTIFICACIÓN: Tarea movida (notificar al asignado si no fue él quien la movió)
     if cambio_de_lista and card.assigned_to and card.assigned_to != request.user:
         crear_notificacion(
             recipient=card.assigned_to,
@@ -379,8 +384,9 @@ def add_member(request, board_id):
             return redirect('board_detail', pk=board_id)
         
         Membership.objects.create(user=user, board=board, role=role)
+        notify_member_added(user, board, request.user)
         
-        # 🔥 NOTIFICACIÓN: Nuevo miembro añadido al tablero (WebSocket + DB)
+        # NOTIFICACIÓN: Nuevo miembro añadido al tablero (WebSocket + DB)
         crear_notificacion(
             recipient=user,
             sender=request.user,
@@ -526,11 +532,12 @@ def edit_card(request, card_id):
         members.append(board.owner)
     
     if request.method == 'POST':
+        old_assigned_id = card.assigned_to_id
         form = CardForm(request.POST, instance=card)
         if form.is_valid():
             updated_card = form.save()
             
-            # 🔥 NOTIFICACIÓN: Si cambió el usuario asignado, notificar al nuevo
+            # NOTIFICACIÓN: Si cambió el usuario asignado, notificar al nuevo
             if updated_card.assigned_to and updated_card.assigned_to != old_assigned_to:
                 crear_notificacion(
                     recipient=updated_card.assigned_to,

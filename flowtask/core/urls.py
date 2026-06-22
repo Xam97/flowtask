@@ -14,15 +14,15 @@ urlpatterns = [
     
     # Tableros y boards
     path('boards/', include('boards.urls')),
+
+    # Comentarios en tareas
+    path('comments/', include('comments.urls')),
     
     # Notificaciones
     path('notifications/', include('notifications.urls')),
     
     # Actividad reciente
     path('activity/', include('activity.urls')),
-
-    # Notificaciones
-    path('notifications/', include('notifications.urls')),
 ]
 
 # Servir archivos media en desarrollo

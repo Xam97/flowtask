@@ -12,14 +12,14 @@ def get_notifications(request):
     """
     limit = int(request.GET.get('limit', 10))
     
-    # 🔴 CAMBIO: recipient → user
+    # CAMBIO: recipient → user
     notifications = Notification.objects.filter(
-        user=request.user  # 👈 Cambiado de 'recipient' a 'user'
+        user=request.user  # Cambiado de 'recipient' a 'user'
     ).order_by('-created_at')[:limit]
     
-    # 🔴 CAMBIO: recipient → user
+    # CAMBIO: recipient → user
     unread_count = Notification.objects.filter(
-        user=request.user,  # 👈 Cambiado de 'recipient' a 'user'
+        user=request.user,  # Cambiado de 'recipient' a 'user'
         is_read=False
     ).count()
     
@@ -28,7 +28,8 @@ def get_notifications(request):
         'notifications': [
             {
                 'id': n.id,
-                'type': n.type,  # 👈 Asegúrate que tu modelo tiene 'type'
+                'type': n.type,
+                'title': n.title,
                 'message': n.message,
                 'board_id': n.board_id,
                 'card_id': n.card_id,
@@ -48,7 +49,7 @@ def mark_as_read(request, notification_id):
     """
     Marca una notificación como leída
     """
-    # 🔴 CAMBIO: recipient → user
+    # CAMBIO: recipient → user
     notification = get_object_or_404(Notification, id=notification_id, user=request.user)
     notification.is_read = True
     notification.save()
@@ -61,9 +62,9 @@ def mark_all_as_read(request):
     """
     Marca todas las notificaciones del usuario como leídas
     """
-    # 🔴 CAMBIO: recipient → user
+    # CAMBIO: recipient → user
     count = Notification.objects.filter(
-        user=request.user,  # 👈 Cambiado de 'recipient' a 'user'
+        user=request.user,  # Cambiado de 'recipient' a 'user'
         is_read=False
     ).update(is_read=True)
     
