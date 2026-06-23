@@ -27,14 +27,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     {% block extra_css %}{% endblock %}
 </head>
-<<<<<<< HEAD
-<body {% if user.is_authenticated %}data-user-id="{{ user.id }}" data-username="{{ user.username }}"{% endif %}>
-    {# NAVBAR PRINCIPAL #}
-=======
 <body class="{% if not user.is_authenticated %}auth-page{% endif %}"
       {% if user.is_authenticated %}data-user-id="{{ user.id }}" data-username="{{ user.username }}"{% endif %}>
 
->>>>>>> origin/pruebas
     <nav class="navbar navbar-expand-lg sticky-top">
         <div class="container-fluid">
             <a class="navbar-brand" href="{% if user.is_authenticated %}{% url 'dashboard' %}{% else %}{% url 'login' %}{% endif %}">
@@ -48,25 +43,6 @@
             </button>
 
             <div class="collapse navbar-collapse" id="navbarNav">
-<<<<<<< HEAD
-                {# Búsqueda global #}
-                <form class="search-form d-flex mx-auto" role="search">
-                    <input class="form-control" type="search" placeholder="Buscar tareas, tableros..." aria-label="Search">
-                    <button class="btn" type="submit">
-                        <i class="fas fa-search"></i>
-                    </button>
-                </form>
-                
-                {# Menú de usuario #}
-                <ul class="navbar-nav ms-auto">
-                    {# Notificaciones #}
-                    {% if user.is_authenticated %}
-                    <li class="nav-item notification-wrapper">
-                        <a class="nav-link notification-icon" href="#" id="notificationToggle">
-                            <i class="fas fa-bell"></i>
-                            <span class="badge" id="notificationBadge" style="display: none;">0</span>
-                        </a>
-=======
                 <div class="search-wrapper">
                     <form class="search-form" id="globalSearchForm" action="{% url 'search' %}" method="GET" role="search">
                         <i class="fas fa-search search-icon"></i>
@@ -89,7 +65,6 @@
                             <i class="fas fa-bell"></i>
                             <span class="badge" id="notificationBadge" style="display:none;">0</span>
                         </button>
->>>>>>> origin/pruebas
                         <div class="notification-panel" id="notificationPanel">
                             <div class="notification-panel-header">
                                 <h6>Notificaciones</h6>
@@ -100,12 +75,6 @@
                             </ul>
                         </div>
                     </li>
-<<<<<<< HEAD
-                    {% endif %}
-                    
-                    {# Perfil de usuario #}
-=======
->>>>>>> origin/pruebas
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle user-dropdown" href="#" data-bs-toggle="dropdown">
                             <span class="user-avatar-sm">{{ user.username|make_list|first|upper }}</span>
@@ -248,10 +217,6 @@
     {% if user.is_authenticated %}
     <script src="{% static 'js/notifications.js' %}"></script>
     {% endif %}
-<<<<<<< HEAD
-    
-=======
->>>>>>> origin/pruebas
     {% block extra_js %}{% endblock %}
 </body>
 </html>
