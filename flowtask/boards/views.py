@@ -10,11 +10,7 @@ from django.views.decorators.csrf import csrf_protect
 from django.db import models
 from .models import Board, List, Card, Membership
 from django.contrib.auth.models import User
-<<<<<<< HEAD
-from notifications.services import notify_member_added, notify_task_assigned
-=======
 from notifications.services import notify_member_added, notify_task_assigned, log_activity
->>>>>>> origin/pruebas
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from .serializers import UserRegistrationSerializer
@@ -56,10 +52,7 @@ def board_detail(request, pk):
     lists = board.lists.all().prefetch_related(
         'cards__assigned_to',
         'cards__comments_card',
-<<<<<<< HEAD
-=======
         'cards__labels',
->>>>>>> origin/pruebas
     ).order_by('position')
     
     # Obtener miembros (evitando duplicados)
@@ -531,14 +524,6 @@ def edit_card(request, card_id):
         form = CardForm(request.POST, instance=card)
         if form.is_valid():
             form.save()
-<<<<<<< HEAD
-=======
-            log_activity(
-                request.user, board.id, 'edit_card',
-                f'Editó la tarea "{card.title}"',
-                card_id=card.id,
-            )
->>>>>>> origin/pruebas
             if card.assigned_to_id and card.assigned_to_id != old_assigned_id:
                 notify_task_assigned(card.assigned_to, card, request.user)
             messages.success(request, f'Tarea "{card.title}" actualizada')
