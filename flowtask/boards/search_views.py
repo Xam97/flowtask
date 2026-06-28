@@ -5,9 +5,32 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.views.decorators.http import require_GET, require_http_methods
 from django.views.decorators.csrf import csrf_protect
+import json
+import re
 
 from boards.models import Board, Card, Label, CardLabel
 from boards.utils import get_user_boards, get_accessible_board_ids, user_can_access_board
+from boards.permissions import user_has_permission, get_user_permissions
+
+HEX_COLOR_RE = re.compile(r'^#[0-9A-Fa-f]{6}$')
+
+
+def _validate_color(color):
+    if HEX_COLOR_RE.match(color):
+        return color
+    preset = dict(Label.COLOR_CHOICES)
+    return color if color in preset else '#579bfc'
+
+
+def _serialize_label(label):
+    return {
+        'id': label.id,
+        'name': label.name,
+        'color': label.color,
+        'board_id': label.board_id,
+        'board_name': label.board.name,
+        'card_count': label.cards.count(),
+    }
 
 
 @login_required
@@ -165,12 +188,14 @@ def labels_view(request):
         labels = labels.filter(board_id=int(board_filter))
 
     boards = get_user_boards(request.user).order_by('name')
+    perms_by_board = {b.id: get_user_permissions(request.user, b) for b in boards}
 
     label_data = []
     for label in labels:
         label_data.append({
             'label': label,
             'card_count': label.cards.count(),
+            'can_manage': user_has_permission(request.user, label.board, 'manage_labels'),
         })
 
     return render(request, 'labels/labels.html', {
@@ -178,6 +203,122 @@ def labels_view(request):
         'boards': boards,
         'selected_board': board_filter,
         'label_colors': Label.COLOR_CHOICES,
+        'label_permissions_json': json.dumps({
+            str(bid): perms for bid, perms in perms_by_board.items()
+        }),
+    })
+
+
+@login_required
+def panel_view(request):
+    """Panel de métricas y reportes en tiempo real"""
+    from django.db.models import Count, Q, Avg
+    from django.utils import timezone
+    from datetime import timedelta
+    
+    board_ids = get_accessible_board_ids(request.user)
+    boards = get_user_boards(request.user).order_by('name')
+    
+    selected_board_id = request.GET.get('board')
+    if selected_board_id and selected_board_id.isdigit() and int(selected_board_id) in board_ids:
+        selected_board_id = int(selected_board_id)
+    elif boards.exists():
+        selected_board_id = boards.first().id
+    else:
+        selected_board_id = None
+    
+    metrics = {}
+    board_cards = []
+    
+    if selected_board_id:
+        board = get_object_or_404(Board, pk=selected_board_id, is_archived=False)
+        
+        # Métricas generales
+        total_cards = Card.objects.filter(list__board=board).count()
+        completed_cards = Card.objects.filter(list__board=board, is_completed=True).count()
+        pending_cards = total_cards - completed_cards
+        
+        # Tarjetas por prioridad
+        priority_stats = Card.objects.filter(list__board=board).values('priority').annotate(
+            count=Count('id')
+        ).order_by('priority')
+        
+        # Tarjetas por lista
+        list_stats = []
+        for lst in board.lists.all():
+            list_stats.append({
+                'name': lst.name,
+                'total': lst.cards.count(),
+                'completed': lst.cards.filter(is_completed=True).count(),
+            })
+        
+        # Tarjetas vencidas y próximas a vencer
+        now = timezone.now()
+        overdue = Card.objects.filter(
+            list__board=board,
+            due_date__lt=now,
+            is_completed=False
+        ).count()
+        
+        due_soon = Card.objects.filter(
+            list__board=board,
+            due_date__gte=now,
+            due_date__lte=now + timedelta(days=7),
+            is_completed=False
+        ).count()
+        
+        # Tarjetas asignadas vs sin asignar
+        assigned = Card.objects.filter(list__board=board, assigned_to__isnull=False).count()
+        unassigned = total_cards - assigned
+        
+        # Actividad reciente (últimos 7 días)
+        week_ago = now - timedelta(days=7)
+        recent_activity = Card.objects.filter(
+            list__board=board,
+            created_at__gte=week_ago
+        ).count()
+        
+        metrics = {
+            'total_cards': total_cards,
+            'completed_cards': completed_cards,
+            'pending_cards': pending_cards,
+            'completion_rate': round((completed_cards / total_cards * 100) if total_cards > 0 else 0, 1),
+            'overdue': overdue,
+            'due_soon': due_soon,
+            'assigned': assigned,
+            'unassigned': unassigned,
+            'recent_activity': recent_activity,
+            'priority_stats': list(priority_stats),
+            'list_stats': list_stats,
+        }
+        
+        # Tarjetas recientes para mostrar
+        board_cards = Card.objects.filter(
+            list__board=board
+        ).select_related('list', 'assigned_to').order_by('-created_at')[:10]
+    
+    return render(request, 'panel/panel.html', {
+        'boards': boards,
+        'selected_board': selected_board_id,
+        'metrics': metrics,
+        'board_cards': board_cards,
+    })
+
+
+@login_required
+@require_GET
+def labels_api(request):
+    """API JSON para listar etiquetas de tableros accesibles."""
+    board_ids = get_accessible_board_ids(request.user)
+    board_id = request.GET.get('board_id')
+
+    labels = Label.objects.filter(board_id__in=board_ids).select_related('board')
+    if board_id and board_id.isdigit() and int(board_id) in board_ids:
+        labels = labels.filter(board_id=int(board_id))
+
+    return JsonResponse({
+        'success': True,
+        'labels': [_serialize_label(l) for l in labels],
     })
 
 
@@ -185,26 +326,77 @@ def labels_view(request):
 @login_required
 @require_http_methods(['POST'])
 def create_label(request):
-    board_id = request.POST.get('board_id')
-    name = request.POST.get('name', '').strip()
-    color = request.POST.get('color', '#579bfc')
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
+    if is_ajax:
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            data = request.POST
+    else:
+        data = request.POST
+
+    board_id = data.get('board_id')
+    name = (data.get('name') or '').strip()
+    color = _validate_color(data.get('color', '#579bfc'))
 
     board = get_object_or_404(Board, pk=board_id, is_archived=False)
-    if not user_can_access_board(request.user, board):
+    if not user_has_permission(request.user, board, 'manage_labels'):
+        if is_ajax:
+            return JsonResponse({'success': False, 'error': 'Sin permiso'}, status=403)
         messages.error(request, 'Sin permiso')
         return redirect('labels')
 
     if len(name) < 2:
+        if is_ajax:
+            return JsonResponse({'success': False, 'error': 'El nombre debe tener al menos 2 caracteres'})
         messages.error(request, 'El nombre debe tener al menos 2 caracteres')
         return redirect('labels')
 
     if Label.objects.filter(board=board, name=name).exists():
+        if is_ajax:
+            return JsonResponse({'success': False, 'error': f'La etiqueta "{name}" ya existe'})
         messages.warning(request, f'La etiqueta "{name}" ya existe en este tablero')
         return redirect('labels')
 
-    Label.objects.create(name=name, color=color, board=board)
+    label = Label.objects.create(name=name, color=color, board=board)
+
+    if is_ajax:
+        return JsonResponse({'success': True, 'label': _serialize_label(label)})
+
     messages.success(request, f'Etiqueta "{name}" creada')
     return redirect('labels')
+
+
+@csrf_protect
+@login_required
+@require_http_methods(['POST', 'PUT', 'PATCH'])
+def update_label(request, label_id):
+    label = get_object_or_404(Label, pk=label_id)
+    board = label.board
+
+    if not user_has_permission(request.user, board, 'manage_labels'):
+        return JsonResponse({'success': False, 'error': 'Sin permiso'}, status=403)
+
+    try:
+        data = json.loads(request.body) if request.body else request.POST
+    except json.JSONDecodeError:
+        data = request.POST
+
+    name = (data.get('name') or label.name).strip()
+    color = _validate_color(data.get('color', label.color))
+
+    if len(name) < 2:
+        return JsonResponse({'success': False, 'error': 'El nombre debe tener al menos 2 caracteres'})
+
+    if Label.objects.filter(board=board, name=name).exclude(pk=label.id).exists():
+        return JsonResponse({'success': False, 'error': f'La etiqueta "{name}" ya existe'})
+
+    label.name = name
+    label.color = color
+    label.save()
+
+    return JsonResponse({'success': True, 'label': _serialize_label(label)})
 
 
 @csrf_protect
@@ -212,12 +404,20 @@ def create_label(request):
 @require_http_methods(['POST'])
 def delete_label(request, label_id):
     label = get_object_or_404(Label, pk=label_id)
-    if not user_can_access_board(request.user, label.board):
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
+    if not user_has_permission(request.user, label.board, 'manage_labels'):
+        if is_ajax:
+            return JsonResponse({'success': False, 'error': 'Sin permiso'}, status=403)
         messages.error(request, 'Sin permiso')
         return redirect('labels')
 
     name = label.name
     label.delete()
+
+    if is_ajax:
+        return JsonResponse({'success': True, 'message': f'Etiqueta "{name}" eliminada'})
+
     messages.success(request, f'Etiqueta "{name}" eliminada')
     return redirect('labels')
 
@@ -234,6 +434,9 @@ def toggle_card_label(request, card_id, label_id):
 
     if not user_can_access_board(request.user, card.list.board):
         return JsonResponse({'success': False, 'error': 'Sin permiso'}, status=403)
+
+    if not user_has_permission(request.user, card.list.board, 'manage_labels'):
+        return JsonResponse({'success': False, 'error': 'Sin permiso para gestionar etiquetas'}, status=403)
 
     existing = CardLabel.objects.filter(card=card, label=label).first()
     if existing:
