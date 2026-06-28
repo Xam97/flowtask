@@ -72,7 +72,15 @@
                 </div>
                 <div class="board-card-footer">
                     <a href="{% url 'board_detail' board.id %}" class="btn btn-sm btn-outline-primary board-open-link">Abrir</a>
-                    <a href="{% url 'edit_board' board.id %}" class="btn btn-sm btn-icon" title="Editar"><i class="fas fa-pen"></i></a>
+                    <div class="board-actions">
+                        <a href="{% url 'edit_board' board.id %}" class="btn btn-sm btn-icon" title="Editar"><i class="fas fa-pen"></i></a>
+                        <form method="POST" action="{% url 'delete_board' board.id %}" style="display:inline;">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-icon btn-delete" title="Eliminar" onclick="return confirm('¿Eliminar el tablero \"{{ board.name }}\"? Esta acción lo archivará.');">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </div>
             {% endwith %}
@@ -112,6 +120,16 @@
                 </div>
                 <div class="board-card-footer">
                     <a href="{% url 'board_detail' board.id %}" class="btn btn-sm btn-outline-primary board-open-link">Abrir</a>
+                    {% if board.can_delete %}
+                    <div class="board-actions">
+                        <form method="POST" action="{% url 'delete_board' board.id %}" style="display:inline;">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-icon btn-delete" title="Eliminar" onclick="return confirm('¿Eliminar el tablero \"{{ board.name }}\"? Esta acción lo archivará.');">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </form>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
             {% endfor %}

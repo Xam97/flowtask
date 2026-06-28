@@ -68,7 +68,14 @@
                         <div class="notification-panel" id="notificationPanel">
                             <div class="notification-panel-header">
                                 <h6>Notificaciones</h6>
-                                <button class="btn btn-sm btn-link" id="markAllReadBtn">Marcar todas</button>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-sm btn-notification-action" id="markAllReadBtn" title="Marcar todas como leídas">
+                                        <i class="fas fa-check-double"></i> Marcar todas
+                                    </button>
+                                    <button class="btn btn-sm btn-notification-action btn-notification-danger" id="deleteReadBtn" title="Eliminar leídas">
+                                        <i class="fas fa-trash-alt"></i> Limpiar
+                                    </button>
+                                </div>
                             </div>
                             <ul class="notification-list" id="notificationList">
                                 <li class="notification-empty">Cargando...</li>
@@ -135,9 +142,9 @@
                         <i class="nav-icon-activity fas fa-stream"></i>
                         <span>Actividad</span>
                     </a>
-                    <a href="{% url 'labels' %}" class="nav-item {% if nav_active == 'labels' %}active{% endif %}">
-                        <i class="nav-icon-labels fas fa-tags"></i>
-                        <span>Etiquetas</span>
+                    <a href="{% url 'panel' %}" class="nav-item {% if nav_active == 'panel' %}active{% endif %}">
+                        <i class="nav-icon-labels fas fa-chart-line"></i>
+                        <span>Panel</span>
                     </a>
                 </nav>
 
@@ -176,28 +183,34 @@
 
     {% if user.is_authenticated %}
     <div class="modal fade" id="createBoardModal" tabindex="-1">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title"><i class="fas fa-plus-circle me-2"></i>Crear Nuevo Tablero</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <h5 class="modal-title"><i class="fas fa-plus-circle"></i> Crear Nuevo Tablero</h5>
+                    <button type="button" class="btn-close btn-close-modal" data-bs-dismiss="modal">
+                        <i class="fas fa-times"></i>
+                    </button>
                 </div>
                 <div class="modal-body">
                     <form id="createBoardForm">
                         {% csrf_token %}
-                        <div class="mb-3">
-                            <label for="boardName" class="form-label">Nombre del tablero</label>
-                            <input type="text" class="form-control" id="boardName" required minlength="3" placeholder="Mi proyecto...">
+                        <div class="form-group-modern">
+                            <label for="boardName" class="form-label-modern">Nombre del tablero</label>
+                            <input type="text" class="form-control-modern" id="boardName" required minlength="3" placeholder="Mi proyecto...">
                         </div>
-                        <div class="mb-3">
-                            <label for="boardDescription" class="form-label">Descripción</label>
-                            <textarea class="form-control" id="boardDescription" rows="2" placeholder="Opcional"></textarea>
+                        <div class="form-group-modern">
+                            <label for="boardDescription" class="form-label-modern">Descripción</label>
+                            <textarea class="form-control-modern" id="boardDescription" rows="2" placeholder="Opcional"></textarea>
                         </div>
                     </form>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-primary" id="saveBoardBtn">Crear Tablero</button>
+                    <button type="button" class="btn btn-secondary btn-modern" data-bs-dismiss="modal">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                    <button type="button" class="btn btn-primary btn-modern" id="saveBoardBtn">
+                        <i class="fas fa-plus"></i> Crear Tablero
+                    </button>
                 </div>
             </div>
         </div>
