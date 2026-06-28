@@ -20,15 +20,14 @@ Sistema moderno de gestión de tareas estilo Kanban desarrollado con Django y fu
 - [Sistema de Roles y Permisos](#sistema-de-roles-y-permisos)
 - [Buenas Prácticas Implementadas](#buenas-prácticas-implementadas)
 - [Solución de Problemas Comunes (Troubleshooting)](#solución-de-problemas-comunes-troubleshooting)
-- [Posibles Mejoras Futuras](#posibles-mejoras-futuras)
 - [Autores](#autores)
 - [Licencia](#licencia)
 
 ## Descripción General
 
-FlowTask es una aplicación web de gestión de tareas basada en el metodología Kanban, diseñada para facilitar la colaboración en equipo y el seguimiento de proyectos. Ofrece una interfaz moderna e intuitiva inspirada en herramientas como Monday.com, con soporte para modo claro y oscuro, notificaciones en tiempo real mediante WebSockets, y un sistema completo de gestión de tableros, listas y tarjetas.
+FlowTask es una aplicación web para la gestión colaborativa de tareas y proyectos basada en la metodología Kanban, con una experiencia de uso similar a Trello. Permite organizar el trabajo mediante tableros, listas y tarjetas, facilitando la planificación, el seguimiento de actividades y la colaboración en tiempo real a través de notificaciones y WebSockets.
 
-## Obetivo del Sistema
+## Objetivo del Sistema
 
 El objetivo principal de FlowTask es proporcionar una solución eficiente y accesible para la gestión de tareas y proyectos, permitiendo a los equipos:
 
@@ -58,14 +57,16 @@ El objetivo principal de FlowTask es proporcionar una solución eficiente y acce
 ## Tecnologías Utilizadas
 
 ### Backend
-- **Django 5.2**: Framework web de Python para el desarrollo rápido y limpio
-- **Django REST Framework 3.15+**: API RESTful para servicios web
-- **Django Channels 4.1+**: Soporte para WebSockets y comunicación en tiempo real
-- **Daphne 4.1.0**: Servidor ASGI para aplicaciones Django con WebSockets
-- **python-decouple 3.8+**: Gestión de configuración mediante variables de entorno
-- **django-stronghold 0.4.0**: Protección de vistas para usuarios autenticados
-- **django-password-validators 1.0.0**: Validación avanzada de contraseñas
-- **argon2-cffi 23.1.0**: Hashing seguro de contraseñas con Argon2
+
+- **Python 3.13** (compatible con Python 3.10 o superior): Lenguaje de programación utilizado para el desarrollo del proyecto.
+- **Django 5.2**: Framework web principal para el desarrollo de la aplicación.
+- **Django REST Framework 3.15+**: Utilizado para la serialización, validación de datos y algunos servicios internos del sistema.
+- **Django Channels 4.1+**: Comunicación en tiempo real mediante WebSockets.
+- **Daphne 4.1.0**: Servidor ASGI para aplicaciones Django con soporte para WebSockets.
+- **python-decouple 3.8+**: Gestión de variables de entorno y configuración sensible.
+- **django-stronghold 0.4.0**: Protección de vistas para usuarios autenticados.
+- **django-password-validators 1.0.0**: Validación avanzada de contraseñas.
+- **argon2-cffi 23.1.0**: Hashing seguro de contraseñas mediante Argon2.
 
 ### Frontend
 - **Bootstrap 5.3.0**: Framework CSS para diseño responsive
@@ -79,7 +80,7 @@ El objetivo principal de FlowTask es proporcionar una solución eficiente y acce
 
 ## Arquitectura
 
-FlowTask sigue una arquitectura modular basada en aplicaciones Django (apps), cada una con una responsabilidad específica:
+FlowTask está desarrollado siguiendo el patrón arquitectónico **MVT (Model-View-Template)** de Django y una estructura modular basada en aplicaciones (*apps*), donde cada módulo posee una responsabilidad específica.
 
 ```
 flowtask/
@@ -97,7 +98,7 @@ flowtask/
 ### Flujo de Arquitectura
 
 1. **Capa de Presentación**: Plantillas HTML con Bootstrap y JavaScript para interactividad
-2. **Capa de Lógica**: Vistas Django y Serializadores DRF para procesamiento de solicitudes
+2. **Capa de Lógica**: Vistas Django encargadas de procesar solicitudes, aplicar reglas de negocio y apoyarse en serializadores DRF cuando se requiere validar o transformar datos.
 3. **Capa de Datos**: Modelos Django con SQLite para persistencia
 4. **Capa de Tiempo Real**: Django Channels con Daphne para WebSockets
 5. **Capa de Seguridad**: Middleware, validadores y hashing Argon2
@@ -106,7 +107,7 @@ flowtask/
 
 Antes de instalar FlowTask, asegúrese de tener instalado en su sistema:
 
-- **Python 3.10 o superior**: [Descargar Python](https://www.python.org/downloads/)
+- **Python 3.10 o superior (probado con Python 3.13)**: [Descargar Python](https://www.python.org/downloads/)
 - **pip**: Gestor de paquetes de Python (incluido con Python)
 - **Git**: Para clonar el repositorio (opcional)
 - **Editor de código**: VS Code, PyCharm, o similar (recomendado)
@@ -129,55 +130,57 @@ pip --version
 # Clonar el repositorio (si está disponible en un servicio Git)
 git clone <url-del-repositorio>
 cd flowtask
-
+cd flowtask
 # O navegar al directorio del proyecto si ya lo tiene descargado
-cd "c:\Users\croda\OneDrive\Documentos\Programación V\flowtask"
+
 ```
 
-### 2. Crear y Activar Entorno Virtual
+### 2. Crear y Activar el Entorno Virtual
 
-Se recomienda encarecidamente utilizar un entorno virtual para aislar las dependencias del proyecto.
+Se recomienda utilizar un entorno virtual para aislar las dependencias del proyecto y evitar conflictos con otros entornos de Python.
 
-#### En Windows (CMD)
+#### Windows (PowerShell)
 
 ```bash
-# Crear entorno virtual
-python -m venv flowtask\venv
+# Crear el entorno virtual
+python -m venv venv
 
-# Activar entorno virtual
-flowtask\venv\Scripts\activate
+# Activar el entorno virtual
+.\venv\Scripts\Activate.ps1
 ```
 
-#### En Windows (PowerShell)
+#### Windows (CMD)
 
 ```bash
-# Crear entorno virtual
-python -m venv flowtask\venv
+# Crear el entorno virtual
+python -m venv venv
 
-# Activar entorno virtual
-flowtask\venv\Scripts\Activate.ps1
+# Activar el entorno virtual
+venv\Scripts\activate.bat
 ```
 
-#### En Linux/macOS
+#### Linux/macOS
 
 ```bash
-# Crear entorno virtual
+# Crear el entorno virtual
 python3 -m venv venv
 
-# Activar entorno virtual
+# Activar el entorno virtual
 source venv/bin/activate
 ```
 
-**Nota**: El entorno virtual ya existe en el proyecto en `flowtask/venv/`. Puede activarlo directamente siguiendo los pasos anteriores.
+Una vez activado, la terminal mostrará el prefijo:
+
+```text
+(venv)
+```
+
+lo que indica que el entorno virtual está listo para instalar las dependencias del proyecto.
 
 ### 3. Instalar Dependencias
-
 Una vez activado el entorno virtual, instale las dependencias desde el archivo `requirements.txt`:
 
 ```bash
-# Asegurarse de estar en el directorio correcto
-cd flowtask
-
 # Instalar dependencias
 pip install -r requirements.txt
 ```
@@ -216,7 +219,7 @@ python manage.py migrate
 
 Este comando creará automáticamente el archivo `db.sqlite3` con todas las tablas necesarias.
 
-### 6. Crear Superusuario (Opcional)
+### 6. Crear Superusuario (Opcional, solo si desea acceder al panel de administración de Django).
 
 Para acceder al panel de administración de Django, cree un superusuario:
 
@@ -236,11 +239,25 @@ python manage.py runserver
 
 El servidor estará disponible en `http://127.0.0.1:8000/`
 
-## Configuración del Archivo .env
+## Configuración del Archivo `.env`
 
-El archivo `.env` contiene variables de entorno críticas para el funcionamiento del proyecto. Utilice el archivo `.env.example` como plantilla:
+FlowTask utiliza variables de entorno para almacenar configuraciones sensibles, como la clave secreta de Django y la configuración del entorno.
 
-### Archivo .env.example
+Después de clonar el repositorio, copie el archivo `.env.example` y cree un nuevo archivo llamado `.env`.
+
+### Windows
+
+```bash
+copy .env.example .env
+```
+
+### Linux/macOS
+
+```bash
+cp .env.example .env
+```
+
+El archivo `.env.example` contiene la configuración básica necesaria para ejecutar el proyecto:
 
 ```env
 SECRET_KEY=your-secret-key
@@ -248,62 +265,45 @@ DEBUG=True
 ALLOWED_HOSTS=127.0.0.1,localhost
 ```
 
-### Configuración Recomendada para Desarrollo
+Una vez creado el archivo `.env`, reemplace `your-secret-key` por una clave secreta propia.
 
-```env
-SECRET_KEY=django-insecure-development-key-change-in-production
-DEBUG=True
-ALLOWED_HOSTS=127.0.0.1,localhost
-```
-
-### Configuración Recomendada para Producción
-
-```env
-SECRET_KEY=generar-una-clave-secreta-segura-y-larga
-DEBUG=False
-ALLOWED_HOSTS=tu-dominio.com,www.tu-dominio.com
-```
-
-**Importante**: Nunca comprometa el archivo `.env` en un repositorio público. Incluya `.env` en su archivo `.gitignore`.
+> **Importante:** El archivo `.env` contiene información sensible y **no debe incluirse en el repositorio**. Asegúrese de que esté agregado al archivo `.gitignore`.
 
 ## Variables de Entorno Requeridas
 
-| Variable | Descripción | Ejemplo | Requerido |
-|----------|-------------|---------|-----------|
-| `SECRET_KEY` | Clave secreta de Django para firma criptográfica | `django-insecure-#k$...` | Sí |
-| `DEBUG` | Modo de depuración (True/False) | `True` o `False` | Sí |
-| `ALLOWED_HOSTS` | Hosts permitidos para el sitio (separados por coma) | `127.0.0.1,localhost` | Sí |
+| Variable | Descripción | Requerida |
+|----------|-------------|:---------:|
+| `SECRET_KEY` | Clave secreta utilizada por Django para la seguridad de la aplicación. | Sí |
+| `DEBUG` | Activa o desactiva el modo de desarrollo. | Sí |
+| `ALLOWED_HOSTS` | Lista de hosts permitidos para acceder a la aplicación. | Sí |
 
-### Generación de SECRET_KEY Seguro
+### Generar una `SECRET_KEY`
 
-Para producción, genere una clave secreta segura utilizando Python:
+Puede generar una clave secreta segura ejecutando el siguiente comando:
 
 ```bash
 python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
 ```
 
-Copie el resultado y úselo como valor para `SECRET_KEY` en su archivo `.env`.
+Copie el valor generado y reemplácelo en el archivo `.env`.
 
 ## Ejecución del Proyecto
 
-### Iniciar Servidor de Desarrollo
+### Iniciar Servidor de Desarrollo en PowerShell
 
 ```bash
-# Activar entorno virtual (si no está activado)
-flowtask\venv\Scripts\activate
+# Activar el entorno virtual
+.\venv\Scripts\Activate.ps1
 
-# Navegar al directorio del proyecto
-cd flowtask
-
-# Iniciar servidor
+# Iniciar el servidor
 python manage.py runserver
+
 ```
 
 ### Acceder a la Aplicación
 
 - **Aplicación principal**: http://127.0.0.1:8000/
 - **Panel de administración**: http://127.0.0.1:8000/admin/
-- **API endpoints**: http://127.0.0.1:8000/api/ (si está configurado)
 
 ### Detener el Servidor
 
@@ -379,7 +379,7 @@ flowtask/
 │   │   ├── models.py             # Modelos: Board, List, Card, Label
 │   │   ├── views.py              # Vistas de tableros
 │   │   ├── urls.py               # URLs de tableros
-│   │   ├── serializers.py        # Serializadores DRF
+│   │   ├── serializers.py        # Serializadores para validación y transformación de datos
 │   │   ├── permissions.py        # Permisos personalizados
 │   │   ├── validators.py         # Validadores personalizados
 │   │   ├── consumers.py          # Consumidores de WebSockets
@@ -546,7 +546,7 @@ FlowTask implementa un sistema granular de roles y permisos para controlar el ac
 - **Permisos**: Solo lectura
 - Puede ver tableros, listas y tarjetas
 - No puede realizar modificaciones
-- Ideal para stakeholders o clientes que necesitan solo visibilidad
+- Ideal para clientes que necesitan solo visibilidad
 
 ### Implementación Técnica
 
@@ -557,18 +557,7 @@ El sistema de permisos se implementa mediante:
 3. **Validación en Frontend**: Deshabilitación de elementos según rol
 4. **Validación en Backend**: Verificación de permisos antes de ejecutar acciones
 
-### Ejemplo de Uso
-
-```python
-# Verificar si un usuario puede eliminar tarjetas
-membership = Membership.objects.get(user=request.user, board=board)
-if membership.role == 'admin' or membership.can_delete_cards:
-    # Permitir eliminación
-    pass
-else:
-    # Denegar acceso
-    raise PermissionDenied
-```
+Los permisos se validan tanto en el frontend como en el backend para garantizar que cada usuario únicamente pueda realizar las acciones autorizadas según su rol dentro del tablero.
 
 ## Buenas Prácticas Implementadas
 
@@ -598,7 +587,7 @@ else:
 - **Responsive Design**: Adaptación a diferentes tamaños de pantalla
 - **Accesibilidad**: Uso de etiquetas semánticas y atributos ARIA
 - **Performance**: Carga optimizada de recursos, uso de CDN para bibliotecas
-- **UX/UI**: Diseño intuitivo inspirado en herramientas líderes del mercado
+- **UX/UI**: Interfaz basada en la metodología Kanban, similar a Trello
 
 ### Desarrollo
 - **Entorno Virtual**: Aislamiento de dependencias del proyecto
@@ -607,11 +596,12 @@ else:
 - **Configuración por Entorno**: Diferentes configuraciones para desarrollo y producción
 
 ### Arquitectura
-- **MVT (Model-View-Template)**: Patrón arquitectónico de Django
-- **API REST**: Separación de frontend y backend mediante DRF
-- **WebSockets**: Comunicación en tiempo real con Django Channels
-- **Middleware**: Interceptación y procesamiento de solicitudes
-- **Context Processors**: Datos globales disponibles en todas las plantillas
+- **MVT (Model-View-Template):** Patrón arquitectónico principal utilizado por Django.
+- **Aplicaciones Modulares:** Separación del sistema en apps independientes según su responsabilidad.
+- **WebSockets:** Comunicación en tiempo real mediante Django Channels.
+- **Middleware:** Procesamiento de solicitudes y seguridad.
+- **Context Processors:** Datos globales compartidos entre las plantillas.
+- **Django REST Framework:** Utilizado para serialización, validación de datos y algunos servicios internos del sistema.
 
 ## Solución de Problemas Comunes (Troubleshooting)
 
@@ -622,7 +612,7 @@ else:
 **Solución**:
 ```bash
 # Asegurarse de que el entorno virtual esté activado
-flowtask\venv\Scripts\activate
+.\venv\Scripts\Activate.ps1
 
 # Reinstalar dependencias
 pip install -r requirements.txt
@@ -638,8 +628,9 @@ pip install -r requirements.txt
 copy .env.example .env
 
 # Editar .env y establecer un valor para SECRET_KEY
-SECRET_KEY=django-insecure-development-key-change-in-production
+SECRET_KEY=<tu-clave-generada>
 ```
+Puede generar una nueva clave utilizando el comando mostrado en la sección "Configuración del Archivo .env".
 
 ### Problema: Migraciones no aplican correctamente
 
@@ -655,7 +646,7 @@ del db.sqlite3
 python manage.py migrate
 ```
 
-**Advertencia**: Esto eliminará todos los datos. Úsolo en desarrollo.
+**Advertencia**: Esto eliminará todos los datos. Úsalo en desarrollo.
 
 ### Problema: WebSockets no funcionan
 
@@ -743,63 +734,21 @@ netstat -ano | findstr :8000
 taskkill /PID <PID> /F
 ```
 
-## Posibles Mejoras Futuras
-
-### Funcionalidades
-- **Integración con Calendarios Externos**: Google Calendar, Outlook
-- **Sistema de Recordatorios**: Notificaciones por email para tareas vencidas
-- **Archivos Adjuntos**: Posibilidad de adjuntar archivos a tarjetas
-- **Checklists en Tarjetas**: Listas de subtareas dentro de una tarjeta
-- **Vistas de Gantt**: Visualización temporal de proyectos
-- **Plantillas de Tableros**: Crear tableros a partir de plantillas predefinidas
-- **Exportación de Datos**: Exportar tableros a PDF, Excel, CSV
-- **API Pública**: Documentación completa de API para integraciones de terceros
-- **Webhooks**: Notificaciones a servicios externos ante eventos
-- **Sistema de Etiquetas Avanzado**: Etiquetas jerárquicas y categorías
-
-### Tecnológicas
-- **Base de Datos en Producción**: Migración a PostgreSQL o MySQL
-- **Redis para WebSockets**: Usar Redis como channel layer para producción
-- **Caching**: Implementar Redis o Memcached para caché
-- **CDN para Archivos Estáticos**: Usar Cloudflare o AWS CloudFront
-- **Docker**: Contenedorización del proyecto para despliegue fácil
-- **CI/CD**: Pipeline automatizado para pruebas y despliegue
-- **Testing**: Suite completa de pruebas unitarias y de integración
-- **TypeScript**: Migrar JavaScript a TypeScript para mayor seguridad de tipos
-- **Frontend Framework**: Considerar React o Vue.js para SPA más complejo
-
-### UX/UI
-- **Modo Offline**: Soporte para trabajar sin conexión
-- **Atajos de Teclado**: Navegación rápida mediante keyboard shortcuts
-- **Drag-and-drop Mejorado**: Mejorar la experiencia de arrastrar y soltar
-- **Animaciones**: Transiciones más suaves y micro-interacciones
-- **Tema Personalizable**: Permitir a usuarios crear sus propios temas
-- **Accesibilidad**: Mejorar soporte para lectores de pantalla
-- **Móvil**: Aplicación móvil nativa (React Native o Flutter)
-
-### Seguridad
-- **2FA (Two-Factor Authentication)**: Autenticación de dos factores
-- **OAuth2**: Login con Google, GitHub, etc.
-- **Audit Logging**: Registro detallado de acciones de seguridad
-- **Rate Limiting**: Limitar solicitudes para prevenir abuso
-- **CSP (Content Security Policy)**: Política de seguridad de contenido
-- **Helmet**: Headers de seguridad HTTP adicionales
-
-### Rendimiento
-- **Lazy Loading**: Cargar componentes bajo demanda
-- **Virtual Scrolling**: Para listas muy largas
-- **Optimización de Imágenes**: Compresión y formatos modernos (WebP)
-- **Code Splitting**: Dividir código en chunks más pequeños
-- **Service Workers**: Para PWA (Progressive Web App)
-
 ## Autores
 
-FlowTask es un proyecto de gestión de tareas desarrollado con Django, diseñado para facilitar la colaboración en equipo y la organización de proyectos.
+Proyecto desarrollado como parte de la asignatura **Programación V**.
 
-## Licencia
+Desarrollado por:
 
-Este proyecto es de código abierto y está disponible bajo la [Licencia MIT](LICENSE).
+- Fabián Giménez
+- Camila Rodas
+- Alan Rojas
 
 ---
+## Licencia
 
-**Nota**: Este README está diseñado para ser una guía completa para desarrolladores que deseen clonar, configurar y ejecutar el proyecto. Si encuentra algún problema o tiene sugerencias de mejora, por favor abra un issue en el repositorio.
+Este proyecto fue desarrollado con fines académicos como parte de la asignatura **Programación V**.
+
+Puede utilizarse como material de estudio y referencia respetando la autoría correspondiente.
+
+**Nota**: Este README tiene como objetivo facilitar la instalación, configuración y comprensión de la arquitectura del proyecto para fines académicos y de desarrollo.
