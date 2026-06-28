@@ -45,19 +45,51 @@
         }
     }
 
-    function loadRecentBoards() {
+    async function loadRecentBoards() {
         const recentBoards = JSON.parse(localStorage.getItem('recentBoards') || '[]');
         const boardList = document.getElementById('recentBoardsList');
         if (!boardList) return;
 
-        if (recentBoards.length === 0) return;
+        if (recentBoards.length === 0) {
+            boardList.innerHTML = `
+                <div class="board-item board-item-empty" style="opacity:0.5;font-size:0.7rem;padding:0.375rem 0.5rem;">
+                    <span>Sin tableros recientes</span>
+                </div>
+            `;
+            return;
+        }
 
-        boardList.innerHTML = recentBoards.map(board => `
-            <a href="/boards/${board.id}/" class="board-item" data-board-id="${board.id}">
-                <i class="fas fa-columns"></i>
-                <span>${FlowTaskHelpers.escapeHtml(board.name)}</span>
-            </a>
-        `).join('');
+        // Fetch user's owned boards to filter recent boards
+        try {
+            const response = await fetch('/boards/api/user-owned-boards/', { credentials: 'same-origin' });
+            const data = await response.json();
+            const ownedBoardIds = new Set(data.owned_board_ids || []);
+            
+            const filteredBoards = recentBoards.filter(board => ownedBoardIds.has(board.id));
+            
+            if (filteredBoards.length === 0) {
+                boardList.innerHTML = `
+                    <div class="board-item board-item-empty" style="opacity:0.5;font-size:0.7rem;padding:0.375rem 0.5rem;">
+                        <span>Sin tableros recientes</span>
+                    </div>
+                `;
+                return;
+            }
+
+            boardList.innerHTML = filteredBoards.map(board => `
+                <a href="/boards/${board.id}/" class="board-item" data-board-id="${board.id}">
+                    <i class="fas fa-columns"></i>
+                    <span>${FlowTaskHelpers.escapeHtml(board.name)}</span>
+                </a>
+            `).join('');
+        } catch (error) {
+            console.error('Error loading recent boards:', error);
+            boardList.innerHTML = `
+                <div class="board-item board-item-empty" style="opacity:0.5;font-size:0.7rem;padding:0.375rem 0.5rem;">
+                    <span>Error al cargar recientes</span>
+                </div>
+            `;
+        }
     }
 
     function saveRecentBoard(board) {
