@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Etiquetas | FlowTask{% endblock %}
 
@@ -7,7 +8,7 @@
     <div class="page-header">
         <div>
             <h1><i class="fas fa-tags"></i> Etiquetas</h1>
-            <p class="subtitle">Organiza tus tareas con etiquetas de color</p>
+            <p class="subtitle">Organiza tus tareas con etiquetas de color — crea, edita y filtra dinámicamente</p>
         </div>
         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createLabelModal">
             <i class="fas fa-plus"></i> Nueva Etiqueta
@@ -15,19 +16,17 @@
     </div>
 
     <div class="filter-bar">
-        <form method="GET" class="d-flex gap-2">
-            <select name="board" class="form-select form-select-sm" onchange="this.form.submit()">
-                <option value="">Todos los tableros</option>
-                {% for board in boards %}
-                <option value="{{ board.id }}" {% if selected_board == board.id|stringformat:"s" %}selected{% endif %}>{{ board.name }}</option>
-                {% endfor %}
-            </select>
-        </form>
+        <select id="boardFilter" class="form-select form-select-sm" style="max-width:280px;">
+            <option value="">Todos los tableros</option>
+            {% for board in boards %}
+            <option value="{{ board.id }}" {% if selected_board == board.id|stringformat:"s" %}selected{% endif %}>{{ board.name }}</option>
+            {% endfor %}
+        </select>
     </div>
 
-    <div class="labels-grid">
+    <div class="labels-grid" id="labelsGrid">
         {% for item in label_data %}
-        <div class="label-card">
+        <div class="label-card" data-label-id="{{ item.label.id }}">
             <div class="label-header">
                 <div class="label-color" style="background:{{ item.label.color }};"></div>
                 <div>
@@ -37,10 +36,17 @@
             </div>
             <div class="label-meta">
                 <span><i class="fas fa-tasks"></i> {{ item.card_count }} tarea{{ item.card_count|pluralize:"s" }}</span>
-                <form method="POST" action="{% url 'delete_label' item.label.id %}" class="d-inline" onsubmit="return confirm('¿Eliminar esta etiqueta?');">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-sm btn-icon text-danger" title="Eliminar"><i class="fas fa-trash"></i></button>
-                </form>
+                {% if item.can_manage %}
+                <div class="label-actions">
+                    <button class="btn btn-sm btn-icon text-primary edit-label-btn" title="Editar"
+                            data-id="{{ item.label.id }}" data-name="{{ item.label.name }}" data-color="{{ item.label.color }}">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-icon text-danger delete-label-btn" title="Eliminar" data-id="{{ item.label.id }}">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+                {% endif %}
             </div>
         </div>
         {% empty %}
@@ -62,8 +68,7 @@
                 <h5 class="modal-title"><i class="fas fa-tag me-2"></i>Nueva Etiqueta</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form method="POST" action="{% url 'create_label' %}">
-                {% csrf_token %}
+            <form id="createLabelForm">
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label">Tablero</label>
@@ -84,16 +89,11 @@
                             <label class="color-option" style="background:{{ color }};" title="{{ name }}">
                                 <input type="radio" name="color" value="{{ color }}" {% if forloop.first %}checked{% endif %} style="display:none;">
                             </label>
-                            {% empty %}
-                            <label class="color-option selected" style="background:#579bfc;"><input type="radio" name="color" value="#579bfc" checked style="display:none;"></label>
-                            <label class="color-option" style="background:#00c875;"><input type="radio" name="color" value="#00c875" style="display:none;"></label>
-                            <label class="color-option" style="background:#fdab3d;"><input type="radio" name="color" value="#fdab3d" style="display:none;"></label>
-                            <label class="color-option" style="background:#e2445c;"><input type="radio" name="color" value="#e2445c" style="display:none;"></label>
-                            <label class="color-option" style="background:#a25ddc;"><input type="radio" name="color" value="#a25ddc" style="display:none;"></label>
-                            <label class="color-option" style="background:#ff642e;"><input type="radio" name="color" value="#ff642e" style="display:none;"></label>
-                            <label class="color-option" style="background:#ffcb00;"><input type="radio" name="color" value="#ffcb00" style="display:none;"></label>
-                            <label class="color-option" style="background:#0086c0;"><input type="radio" name="color" value="#0086c0" style="display:none;"></label>
                             {% endfor %}
+                        </div>
+                        <div class="mt-2">
+                            <label class="form-label small">Color personalizado</label>
+                            <input type="color" class="form-control form-control-color" id="customColorCreate" value="#579bfc">
                         </div>
                     </div>
                 </div>
@@ -105,17 +105,45 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="editLabelModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Editar Etiqueta</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editLabelForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Nombre</label>
+                        <input type="text" name="name" class="form-control" required minlength="2">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Color</label>
+                        <div class="color-picker">
+                            {% for color, name in label_colors %}
+                            <label class="color-option" style="background:{{ color }};" title="{{ name }}">
+                                <input type="radio" name="color" value="{{ color }}" style="display:none;">
+                            </label>
+                            {% endfor %}
+                        </div>
+                        <div class="mt-2">
+                            <input type="color" class="form-control form-control-color" id="customColorEdit" value="#579bfc">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
-<script>
-document.querySelectorAll('.color-option').forEach(el => {
-    el.addEventListener('click', () => {
-        document.querySelectorAll('.color-option').forEach(o => o.classList.remove('selected'));
-        el.classList.add('selected');
-        el.querySelector('input').checked = true;
-    });
-});
-document.querySelector('.color-option')?.classList.add('selected');
-</script>
+<script>window.labelPermissions = {{ label_permissions_json|safe }};</script>
+<script src="{% static 'js/labels.js' %}"></script>
 {% endblock %}

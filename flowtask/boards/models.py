@@ -39,12 +39,24 @@ class Membership(models.Model):
     board = models.ForeignKey(Board, on_delete=models.CASCADE)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='member')
     joined_at = models.DateTimeField(auto_now_add=True)
-    
+    # Permisos adicionales otorgables por el creador (solo aplica a role='member')
+    can_manage_labels = models.BooleanField(default=True)
+    can_delete_cards = models.BooleanField(default=False)
+    can_edit_lists = models.BooleanField(default=False)
+    can_invite = models.BooleanField(default=False)
+
     class Meta:
         unique_together = ['user', 'board']
-    
+
     def __str__(self):
         return f"{self.user.username} - {self.board.name} ({self.role})"
+
+    def get_role_display_name(self):
+        if self.role == 'admin':
+            return 'Administrador'
+        if self.role == 'viewer':
+            return 'Espectador'
+        return 'Miembro'
 
 
 class List(models.Model):

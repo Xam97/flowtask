@@ -6,6 +6,7 @@ from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_protect
 
 from boards.models import Card
+from boards.permissions import user_can_access_board, user_has_permission
 from notifications.services import (
     broadcast_board_event,
     get_comment_notification_recipients,
@@ -15,17 +16,19 @@ from .models import Comment
 
 
 def _user_has_board_access(user, board):
-    return board.owner_id == user.id or board.members.filter(id=user.id).exists()
+    return user_can_access_board(user, board)
 
 
 def _serialize_comment(comment):
+    from django.utils import timezone
+    local_time = timezone.localtime(comment.created_at)
     return {
         'id': comment.id,
         'card_id': comment.card_id,
         'user': comment.user.username,
         'user_id': comment.user_id,
         'content': comment.content,
-        'created_at': comment.created_at.strftime('%d/%m/%Y %H:%M'),
+        'created_at': local_time.strftime('%d/%m/%Y %H:%M'),
         'is_own': False,
     }
 
@@ -40,16 +43,23 @@ def list_comments(request, card_id):
         return JsonResponse({'success': False, 'error': 'Sin permiso'}, status=403)
 
     comments = []
-    can_comment = bool(card.assigned_to)
-    if can_comment:
+    can_comment = bool(card.assigned_to) and user_has_permission(request.user, board, 'comment')
+    comments = []
+    if card.assigned_to:
         comments = [
             {**_serialize_comment(c), 'is_own': c.user_id == request.user.id}
             for c in card.comments_card.select_related('user').all()
         ]
 
+    card_labels = [
+        {'id': l.id, 'name': l.name, 'color': l.color}
+        for l in card.labels.all()
+    ]
+
     return JsonResponse({
         'success': True,
         'can_comment': can_comment,
+        'can_edit': user_has_permission(request.user, board, 'edit_card'),
         'card': {
             'id': card.id,
             'title': card.title,
@@ -60,6 +70,7 @@ def list_comments(request, card_id):
             'list_name': card.list.name,
             'board_id': board.id,
             'board_name': board.name,
+            'labels': card_labels,
         },
         'comments': comments,
     })
@@ -77,6 +88,13 @@ def add_comment(request, card_id):
             return JsonResponse({'success': False, 'error': 'Sin permiso'}, status=403)
         messages.error(request, 'Sin permiso')
         return JsonResponse({'success': False, 'error': 'Sin permiso'}, status=403)
+
+    if not user_has_permission(request.user, board, 'comment'):
+        error_msg = 'No tienes permiso para comentar'
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'error': error_msg}, status=403)
+        messages.error(request, error_msg)
+        return JsonResponse({'success': False, 'error': error_msg}, status=403)
 
     if not card.assigned_to:
         error_msg = 'Solo puedes comentar en tareas que tengan alguien asignado'
@@ -98,13 +116,15 @@ def add_comment(request, card_id):
         content=content,
     )
 
+    from django.utils import timezone
+    local_time = timezone.localtime(comment.created_at)
     comment_data = {
         'comment_id': comment.id,
         'card_id': card.id,
         'user': comment.user.username,
         'user_id': comment.user_id,
         'comment': comment.content,
-        'created_at': comment.created_at.strftime('%d/%m/%Y %H:%M'),
+        'created_at': local_time.strftime('%d/%m/%Y %H:%M'),
     }
 
     broadcast_board_event(board.id, 'new_comment', comment_data)

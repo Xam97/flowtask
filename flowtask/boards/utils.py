@@ -1,6 +1,7 @@
 from django.db.models import Q
 
 from .models import Board
+from .permissions import user_can_access_board as _user_can_access_board
 
 
 def get_user_boards(user):
@@ -13,7 +14,7 @@ def get_user_boards(user):
 def user_can_access_board(user, board):
     if board.is_archived:
         return False
-    return board.owner_id == user.id or board.members.filter(id=user.id).exists()
+    return _user_can_access_board(user, board)
 
 
 def get_accessible_board_ids(user):

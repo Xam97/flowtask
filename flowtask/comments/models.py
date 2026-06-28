@@ -6,7 +6,8 @@ from boards.models import Card
 
 
 class Comment(models.Model):
-   
+    """Comentarios en tarjetas"""
+    
     card = models.ForeignKey(Card, on_delete=models.CASCADE, related_name='comments_card')
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='comments_user')
     content = models.TextField()

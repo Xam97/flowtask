@@ -9,8 +9,21 @@ from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_protect
 from django.db import models
 from .models import Board, List, Card, Membership
+from .permissions import (
+    user_can_access_board,
+    user_has_permission,
+    get_user_permissions,
+    get_membership_permissions,
+    GRANTABLE_FIELD_MAP,
+)
 from django.contrib.auth.models import User
-from notifications.services import notify_member_added, notify_task_assigned, log_activity
+from notifications.services import (
+    notify_member_added, notify_task_assigned, log_activity,
+    notify_card_moved, notify_card_deleted, notify_card_created,
+    notify_card_edited, notify_list_created, notify_list_deleted,
+    notify_list_edited, notify_board_created, notify_board_edited,
+    notify_role_changed,
+)
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from .serializers import UserRegistrationSerializer
@@ -37,14 +50,25 @@ def board_list(request):
 
 
 @login_required
+@require_http_methods(["GET"])
+def user_owned_boards_api(request):
+    """API JSON con IDs de tableros propiedad del usuario."""
+    owned_boards = request.user.owned_boards.filter(is_archived=False)
+    owned_board_ids = list(owned_boards.values_list('id', flat=True))
+    return JsonResponse({
+        'success': True,
+        'owned_board_ids': owned_board_ids,
+    })
+
+
+@login_required
 def board_detail(request, pk):
     """
     Vista detallada de un tablero (vista Kanban)
     """
     board = get_object_or_404(Board, pk=pk, is_archived=False)
     
-    # Verificar permisos: propietario O miembro
-    if board.owner != request.user and not board.members.filter(id=request.user.id).exists():
+    if not user_can_access_board(request.user, board):
         messages.error(request, 'No tienes permiso para ver este tablero')
         return redirect('dashboard')
     
@@ -60,11 +84,21 @@ def board_detail(request, pk):
     if board.owner not in members:
         members.append(board.owner)
     
+    memberships = list(
+        Membership.objects.filter(board=board).select_related('user')
+    )
+    
     context = {
         'board': board,
         'lists': lists,
         'members': members,
+        'memberships': memberships,
         'labels': board.labels.all(),
+        'board_permissions': get_user_permissions(request.user, board),
+        'is_owner': board.owner_id == request.user.id,
+        'user_role': 'owner' if board.owner_id == request.user.id else (
+            Membership.objects.filter(user=request.user, board=board).values_list('role', flat=True).first()
+        ),
     }
     return render(request, 'boards/board_detail.html', context)
 
@@ -104,7 +138,8 @@ def create_board(request):
         request.user, board.id, 'create_board',
         f'Creó el tablero "{board.name}"',
     )
-    
+    notify_board_created(board, request.user)
+
     # Verificar si es petición AJAX
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return JsonResponse({
@@ -130,7 +165,7 @@ def delete_board(request, pk):
     """
     board = get_object_or_404(Board, pk=pk)
     
-    if board.owner != request.user:
+    if not user_has_permission(request.user, board, 'delete_board'):
         messages.error(request, 'Solo el propietario puede eliminar el tablero')
         return redirect('board_detail', pk=pk)
     
@@ -151,7 +186,7 @@ def create_list(request, board_id):
     """
     board = get_object_or_404(Board, pk=board_id)
     
-    if board.owner != request.user and not board.members.filter(id=request.user.id).exists():
+    if not user_has_permission(request.user, board, 'create_list'):
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return JsonResponse({'success': False, 'error': 'Sin permiso'}, status=403)
         messages.error(request, 'Sin permiso')
@@ -199,7 +234,7 @@ def delete_list(request, list_id):
     list_obj = get_object_or_404(List, pk=list_id)
     board_id = list_obj.board.id
     
-    if list_obj.board.owner != request.user:
+    if not user_has_permission(request.user, list_obj.board, 'delete_lists'):
         messages.error(request, 'Sin permiso para eliminar esta lista')
         return redirect('board_detail', pk=board_id)
     
@@ -225,7 +260,7 @@ def create_card(request, list_id):
     list_obj = get_object_or_404(List, pk=list_id)
     board = list_obj.board
     
-    if board.owner != request.user and not board.members.filter(id=request.user.id).exists():
+    if not user_has_permission(request.user, board, 'create_card'):
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return JsonResponse({'success': False, 'error': 'Sin permiso'}, status=403)
         messages.error(request, 'Sin permiso')
@@ -234,6 +269,7 @@ def create_card(request, list_id):
     title = request.POST.get('title')
     description = request.POST.get('description', '')
     assigned_to_id = request.POST.get('assigned_to')
+    due_date = request.POST.get('due_date')
     
     if not title:
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -248,7 +284,8 @@ def create_card(request, list_id):
         description=description,
         list=list_obj,
         created_by=request.user,
-        position=max_position + 10
+        position=max_position + 10,
+        due_date=due_date if due_date else None
     )
     
     if assigned_to_id:
@@ -298,11 +335,13 @@ def update_card_position(request):
     
     card = get_object_or_404(Card, pk=card_id)
     board_id = card.list.board.id
+    board = card.list.board
 
-    if card.list.board.owner != request.user and not card.list.board.members.filter(id=request.user.id).exists():
+    if not user_has_permission(request.user, board, 'move_card'):
         return JsonResponse({'success': False, 'error': 'Sin permiso'}, status=403)
 
     old_list_name = card.list.name
+    old_list_id = card.list.id
     moved = False
 
     if new_list_id and new_list_id != card.list.id:
@@ -321,6 +360,7 @@ def update_card_position(request):
             f'Movió "{card.title}" de "{old_list_name}" a "{card.list.name}"',
             card_id=card.id,
         )
+        notify_card_moved(board, card, request.user, old_list_name)
 
     return JsonResponse({'success': True})
 
@@ -332,18 +372,21 @@ def delete_card(request, card_id):
     Elimina una tarjeta
     """
     card = get_object_or_404(Card, pk=card_id)
-    board_id = card.list.board.id
+    board = card.list.board
+    board_id = board.id
     
-    if card.list.board.owner != request.user:
+    if not user_has_permission(request.user, board, 'delete_cards'):
         messages.error(request, 'Sin permiso para eliminar esta tarea')
         return redirect('board_detail', pk=board_id)
     
     card_title = card.title
+    card_id_val = card.id
     card.delete()
     log_activity(
         request.user, board_id, 'delete_card',
         f'Eliminó la tarea "{card_title}"',
     )
+    notify_card_deleted(board, card_title, request.user, card_id_val)
     messages.success(request, 'Tarea eliminada')
     return redirect('board_detail', pk=board_id)
 
@@ -358,17 +401,34 @@ def add_member(request, board_id):
     """
     board = get_object_or_404(Board, pk=board_id)
     
-    if board.owner != request.user:
+    can_manage = user_has_permission(request.user, board, 'manage_members')
+    can_invite = user_has_permission(request.user, board, 'invite_members')
+    if not can_manage and not can_invite:
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({'success': False, 'error': 'Solo el propietario puede agregar miembros'}, status=403)
+            return JsonResponse({'success': False, 'error': 'Sin permiso para invitar miembros'}, status=403)
         messages.error(request, 'Sin permiso')
         return redirect('board_detail', pk=board_id)
     
     username = request.POST.get('username')
     role = request.POST.get('role', 'member')
     
+    if not can_manage and role != 'member' and role != 'viewer':
+        role = 'member'
+    
+    # Permisos adicionales para miembros (solo el creador puede otorgarlos)
+    extra_perms = {}
+    if can_manage and role == 'member':
+        for perm, field in GRANTABLE_FIELD_MAP.items():
+            extra_perms[field] = request.POST.get(field) == 'on'
+    
     try:
         user = User.objects.get(username=username)
+        
+        if user.id == board.owner_id:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'error': 'El creador ya pertenece al tablero'})
+            messages.warning(request, 'El creador ya pertenece al tablero')
+            return redirect('board_detail', pk=board_id)
         
         if Membership.objects.filter(user=user, board=board).exists():
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -376,7 +436,7 @@ def add_member(request, board_id):
             messages.warning(request, f'{username} ya es miembro del tablero')
             return redirect('board_detail', pk=board_id)
         
-        Membership.objects.create(user=user, board=board, role=role)
+        membership = Membership.objects.create(user=user, board=board, role=role, **extra_perms)
         notify_member_added(user, board, request.user)
         
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -385,7 +445,9 @@ def add_member(request, board_id):
                 'member': {
                     'id': user.id,
                     'username': user.username,
-                    'role': role
+                    'role': role,
+                    'membership_id': membership.id,
+                    'permissions': get_membership_permissions(membership) if role == 'member' else {},
                 }
             })
         
@@ -408,7 +470,7 @@ def remove_member(request, membership_id):
     membership = get_object_or_404(Membership, pk=membership_id)
     board_id = membership.board.id
     
-    if membership.board.owner != request.user:
+    if not user_has_permission(request.user, membership.board, 'manage_members'):
         messages.error(request, 'Sin permiso')
         return redirect('board_detail', pk=board_id)
     
@@ -416,6 +478,73 @@ def remove_member(request, membership_id):
     membership.delete()
     messages.success(request, f'{username} removido del tablero')
     return redirect('board_detail', pk=board_id)
+
+
+@login_required
+@require_http_methods(["GET"])
+def board_members_api(request, board_id):
+    """API JSON con miembros y permisos del tablero."""
+    board = get_object_or_404(Board, pk=board_id, is_archived=False)
+    if not user_can_access_board(request.user, board):
+        return JsonResponse({'success': False, 'error': 'Sin permiso'}, status=403)
+
+    memberships = Membership.objects.filter(board=board).select_related('user')
+    members_data = [{
+        'membership_id': m.id,
+        'user_id': m.user.id,
+        'username': m.user.username,
+        'role': m.role,
+        'role_display': m.get_role_display_name(),
+        'permissions': get_membership_permissions(m) if m.role == 'member' else {},
+        'joined_at': m.joined_at.strftime('%d/%m/%Y'),
+    } for m in memberships]
+
+    return JsonResponse({
+        'success': True,
+        'owner': {
+            'user_id': board.owner.id,
+            'username': board.owner.username,
+            'role': 'owner',
+        },
+        'members': members_data,
+        'can_manage': user_has_permission(request.user, board, 'manage_members'),
+    })
+
+
+@csrf_protect
+@login_required
+@require_http_methods(["POST"])
+def update_member_permissions(request, membership_id):
+    """Actualiza rol y permisos otorgables de un miembro (solo creador)."""
+    membership = get_object_or_404(Membership, pk=membership_id)
+    board = membership.board
+
+    if not user_has_permission(request.user, board, 'manage_members'):
+        return JsonResponse({'success': False, 'error': 'Sin permiso'}, status=403)
+
+    new_role = request.POST.get('role', membership.role)
+    if new_role in dict(Membership.ROLE_CHOICES):
+        membership.role = new_role
+
+    if membership.role == 'member':
+        for perm, field in GRANTABLE_FIELD_MAP.items():
+            setattr(membership, field, request.POST.get(field) == 'on')
+
+    membership.save()
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({
+            'success': True,
+            'membership': {
+                'id': membership.id,
+                'username': membership.user.username,
+                'role': membership.role,
+                'permissions': get_membership_permissions(membership),
+            },
+        })
+
+    messages.success(request, f'Permisos de {membership.user.username} actualizados')
+    return redirect('board_detail', pk=board.id)
 
 
 # ========== EDICIÓN DE TABLEROS ==========
@@ -428,12 +557,9 @@ def edit_board(request, pk):
     """
     board = get_object_or_404(Board, pk=pk, is_archived=False)
     
-    # Verificar permisos: solo owner o admin pueden editar
-    if board.owner != request.user:
-        membership = Membership.objects.filter(user=request.user, board=board).first()
-        if not membership or membership.role != 'admin':
-            messages.error(request, 'No tienes permiso para editar este tablero')
-            return redirect('board_detail', pk=pk)
+    if not user_has_permission(request.user, board, 'edit_board'):
+        messages.error(request, 'No tienes permiso para editar este tablero')
+        return redirect('board_detail', pk=pk)
     
     if request.method == 'POST':
         form = BoardForm(request.POST, instance=board)
@@ -457,8 +583,7 @@ def delete_board_permanent(request, pk):
     """
     board = get_object_or_404(Board, pk=pk)
     
-    # Solo el owner puede eliminar permanentemente
-    if board.owner != request.user:
+    if not user_has_permission(request.user, board, 'delete_board'):
         messages.error(request, 'Solo el propietario puede eliminar el tablero')
         return redirect('board_detail', pk=pk)
     
@@ -479,12 +604,9 @@ def edit_list(request, list_id):
     list_obj = get_object_or_404(List, pk=list_id)
     board = list_obj.board
     
-    # Verificar permisos
-    if board.owner != request.user:
-        membership = Membership.objects.filter(user=request.user, board=board).first()
-        if not membership or membership.role != 'admin':
-            messages.error(request, 'Sin permiso')
-            return redirect('board_detail', pk=board.id)
+    if not user_has_permission(request.user, board, 'edit_lists'):
+        messages.error(request, 'Sin permiso')
+        return redirect('board_detail', pk=board.id)
     
     if request.method == 'POST':
         form = ListForm(request.POST, instance=list_obj)
@@ -509,9 +631,13 @@ def edit_card(request, card_id):
     card = get_object_or_404(Card, pk=card_id)
     board = card.list.board
     
-    # Verificar permisos
-    if board.owner != request.user and not board.members.filter(id=request.user.id).exists():
+    if not user_can_access_board(request.user, board):
         messages.error(request, 'Sin permiso')
+        return redirect('board_detail', pk=board.id)
+    
+    can_edit = user_has_permission(request.user, board, 'edit_card')
+    if not can_edit:
+        messages.error(request, 'No tienes permiso para editar tareas')
         return redirect('board_detail', pk=board.id)
     
     # Obtener miembros para el select de asignación
@@ -524,6 +650,11 @@ def edit_card(request, card_id):
         form = CardForm(request.POST, instance=card)
         if form.is_valid():
             form.save()
+            log_activity(
+                request.user, board.id, 'edit_card',
+                f'Editó la tarea "{card.title}"',
+                card_id=card.id,
+            )
             if card.assigned_to_id and card.assigned_to_id != old_assigned_id:
                 notify_task_assigned(card.assigned_to, card, request.user)
             messages.success(request, f'Tarea "{card.title}" actualizada')
@@ -537,7 +668,10 @@ def edit_card(request, card_id):
         'form': form,
         'card': card,
         'board': board,
-        'members': members
+        'members': members,
+        'board_labels': board.labels.all(),
+        'card_label_ids': list(card.labels.values_list('id', flat=True)),
+        'board_permissions': get_user_permissions(request.user, board),
     })
 
 
@@ -557,11 +691,8 @@ def update_list_position(request):
     
     list_obj = get_object_or_404(List, pk=list_id)
     
-    # Verificar permisos
-    if list_obj.board.owner != request.user:
-        membership = Membership.objects.filter(user=request.user, board=list_obj.board).first()
-        if not membership or membership.role != 'admin':
-            return JsonResponse({'success': False, 'error': 'Sin permiso'}, status=403)
+    if not user_has_permission(request.user, list_obj.board, 'edit_lists'):
+        return JsonResponse({'success': False, 'error': 'Sin permiso'}, status=403)
     
     if new_position is not None:
         list_obj.position = float(new_position)
