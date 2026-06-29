@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     'activity',     # Registro de actividad reciente
     'websockets',   # Comunicación en tiempo real
     'comments',     # Comentarios en tarjetas
+    'contacts',     # Gestión de contactos y relaciones
 ]
 
 # ========== MIDDLEWARE ==========
