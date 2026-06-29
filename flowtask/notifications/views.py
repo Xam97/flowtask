@@ -4,43 +4,73 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from .models import Notification
+from .services import _notification_payload
+
+
+def _serialize_notification(notification):
+    return _notification_payload(notification)
 
 @login_required
-def get_notifications(request):
-    """
-    Obtiene las notificaciones del usuario autenticado
-    """
-    limit = int(request.GET.get('limit', 10))
-    
-    # CAMBIO: recipient → user
-    notifications = Notification.objects.filter(
-        user=request.user  # Cambiado de 'recipient' a 'user'
-    ).order_by('-created_at')[:limit]
-    
-    # CAMBIO: recipient → user
-    unread_count = Notification.objects.filter(
-        user=request.user,  # Cambiado de 'recipient' a 'user'
-        is_read=False
-    ).count()
-    
-    data = {
+@require_http_methods(["GET"])
+def notification_list(request):
+    qs = Notification.objects.filter(user=request.user)
+
+    notif_type = request.GET.get('type')
+    if notif_type:
+        qs = qs.filter(type=notif_type)
+
+    is_read = request.GET.get('is_read')
+    if is_read == 'true':
+        qs = qs.filter(is_read=True)
+    elif is_read == 'false':
+        qs = qs.filter(is_read=False)
+
+    board_id = request.GET.get('board_id')
+    if board_id and board_id.isdigit():
+        qs = qs.filter(board_id=int(board_id))
+
+    unread_count = Notification.objects.filter(user=request.user, is_read=False).count()
+
+    try:
+        limit = min(int(request.GET.get('limit', 30)), 100)
+    except ValueError:
+        limit = 30
+
+    try:
+        page = max(int(request.GET.get('page', 1)), 1)
+    except ValueError:
+        page = 1
+
+    offset = (page - 1) * limit
+    total = qs.count()
+    notifications = qs[offset:offset + limit]
+
+    return JsonResponse({
+        'success': True,
         'unread_count': unread_count,
-        'notifications': [
-            {
-                'id': n.id,
-                'type': n.type,
-                'title': n.title,
-                'message': n.message,
-                'board_id': n.board_id,
-                'card_id': n.card_id,
-                'is_read': n.is_read,
-                'created_at': n.created_at.isoformat(),
-                'sender': n.sender.username if n.sender else None
-            }
-            for n in notifications
-        ]
-    }
-    return JsonResponse(data)
+        'total': total,
+        'page': page,
+        'limit': limit,
+        'has_more': offset + limit < total,
+        'notifications': [_serialize_notification(n) for n in notifications],
+    })
+
+
+@login_required
+@require_http_methods(["GET"])
+def notification_detail(request, notification_id):
+    notification = get_object_or_404(Notification, pk=notification_id, user=request.user)
+    return JsonResponse({
+        'success': True,
+        'notification': _serialize_notification(notification),
+    })
+
+
+@login_required
+@require_http_methods(["GET"])
+def unread_count(request):
+    count = Notification.objects.filter(user=request.user, is_read=False).count()
+    return JsonResponse({'success': True, 'unread_count': count})
 
 
 @login_required
@@ -58,14 +88,23 @@ def mark_as_read(request, notification_id):
 
 @login_required
 @require_http_methods(["POST"])
-def mark_all_as_read(request):
-    """
-    Marca todas las notificaciones del usuario como leídas
-    """
-    # CAMBIO: recipient → user
-    count = Notification.objects.filter(
-        user=request.user,  # Cambiado de 'recipient' a 'user'
-        is_read=False
-    ).update(is_read=True)
-    
-    return JsonResponse({'success': True, 'marked_count': count})
+def mark_all_read(request):
+    Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
+    return JsonResponse({'success': True, 'unread_count': 0})
+
+
+@login_required
+@require_http_methods(["DELETE", "POST"])
+def delete_notification(request, notification_id):
+    notification = get_object_or_404(Notification, pk=notification_id, user=request.user)
+    notification.delete()
+    unread = Notification.objects.filter(user=request.user, is_read=False).count()
+    return JsonResponse({'success': True, 'unread_count': unread})
+
+
+@login_required
+@require_http_methods(["POST"])
+def delete_all_read(request):
+    deleted, _ = Notification.objects.filter(user=request.user, is_read=True).delete()
+    unread = Notification.objects.filter(user=request.user, is_read=False).count()
+    return JsonResponse({'success': True, 'deleted_count': deleted, 'unread_count': unread})

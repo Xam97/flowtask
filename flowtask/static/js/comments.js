@@ -224,15 +224,22 @@
 
     function initWebSocketHandlers() {
         FlowTaskWebSocket.on('onNewComment', (data) => {
-            if (data.card_id == currentCardId) {
-                const container = document.querySelector(`.comments-container[data-card-id="${data.card_id}"]`);
-                const existing = container?.querySelector(`[data-comment-id="${data.comment_id}"]`);
-                if (container && !existing) {
-                    container.insertAdjacentHTML('beforeend', renderCommentHtml(data));
-                    bindDeleteButtons();
-                    updateCommentCount(1);
-                }
+            const container = document.querySelector(`.comments-container[data-card-id="${data.card_id}"]`);
+            const existing = container?.querySelector(`[data-comment-id="${data.comment_id}"]`);
+
+            // Don't add if it's from the current user (already added locally)
+            if (data.user_id == document.body.dataset.userId) {
+                return;
             }
+
+            // Only add comment if it doesn't already exist and we're viewing that card
+            if (container && !existing && data.card_id == currentCardId) {
+                container.insertAdjacentHTML('beforeend', renderCommentHtml(data));
+                bindDeleteButtons();
+                updateCommentCount(1);
+            }
+
+            // Always update the badge on the card
             updateCardCommentBadge(data.card_id, 1);
         });
     }

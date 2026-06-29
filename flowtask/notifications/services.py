@@ -138,3 +138,153 @@ def broadcast_board_event(board_id, event_type, data):
         f'board_{board_id}',
         {'type': event_type, 'data': data},
     )
+
+
+def _get_board_member_users(board, exclude_user=None):
+    """Usuarios del tablero (miembros + owner), excluyendo opcionalmente uno."""
+    user_ids = set(board.members.values_list('id', flat=True))
+    user_ids.add(board.owner_id)
+    if exclude_user:
+        user_ids.discard(exclude_user.id)
+    return User.objects.filter(id__in=user_ids)
+
+
+def notify_card_moved(board, card, moved_by, old_list_name):
+    """Notifica a miembros del tablero cuando una tarjeta se mueve."""
+    recipients = _get_board_member_users(board, exclude_user=moved_by)
+    for user in recipients:
+        create_notification(
+            user=user,
+            notif_type='card_moved',
+            title='Tarjeta movida',
+            message=(
+                f'{moved_by.username} movió "{card.title}" '
+                f'de "{old_list_name}" a "{card.list.name}" en "{board.name}"'
+            ),
+            board_id=board.id,
+            card_id=card.id,
+        )
+
+
+def notify_card_deleted(board, card_title, deleted_by, card_id=None):
+    """Notifica a miembros del tablero cuando se elimina una tarjeta."""
+    recipients = _get_board_member_users(board, exclude_user=deleted_by)
+    for user in recipients:
+        create_notification(
+            user=user,
+            notif_type='card_deleted',
+            title='Tarjeta eliminada',
+            message=f'{deleted_by.username} eliminó la tarea "{card_title}" en "{board.name}"',
+            board_id=board.id,
+            card_id=card_id,
+        )
+
+
+def notify_card_created(board, card, created_by):
+    """Notifica a miembros del tablero cuando se crea una tarjeta."""
+    recipients = _get_board_member_users(board, exclude_user=created_by)
+    for user in recipients:
+        create_notification(
+            user=user,
+            notif_type='card_created',
+            title='Nueva tarea creada',
+            message=f'{created_by.username} creó la tarea "{card.title}" en "{board.name}"',
+            board_id=board.id,
+            card_id=card.id,
+        )
+
+
+def notify_card_edited(board, card, edited_by):
+    """Notifica a miembros del tablero cuando se edita una tarjeta."""
+    recipients = _get_board_member_users(board, exclude_user=edited_by)
+    for user in recipients:
+        create_notification(
+            user=user,
+            notif_type='card_edited',
+            title='Tarea editada',
+            message=f'{edited_by.username} editó la tarea "{card.title}" en "{board.name}"',
+            board_id=board.id,
+            card_id=card.id,
+        )
+
+
+def notify_list_created(board, list_obj, created_by):
+    """Notifica a miembros del tablero cuando se crea una lista."""
+    recipients = _get_board_member_users(board, exclude_user=created_by)
+    for user in recipients:
+        create_notification(
+            user=user,
+            notif_type='list_created',
+            title='Nueva lista creada',
+            message=f'{created_by.username} creó la lista "{list_obj.name}" en "{board.name}"',
+            board_id=board.id,
+        )
+
+
+def notify_list_deleted(board, list_name, deleted_by):
+    """Notifica a miembros del tablero cuando se elimina una lista."""
+    recipients = _get_board_member_users(board, exclude_user=deleted_by)
+    for user in recipients:
+        create_notification(
+            user=user,
+            notif_type='list_deleted',
+            title='Lista eliminada',
+            message=f'{deleted_by.username} eliminó la lista "{list_name}" en "{board.name}"',
+            board_id=board.id,
+        )
+
+
+def notify_list_edited(board, list_obj, edited_by):
+    """Notifica a miembros del tablero cuando se edita una lista."""
+    recipients = _get_board_member_users(board, exclude_user=edited_by)
+    for user in recipients:
+        create_notification(
+            user=user,
+            notif_type='list_edited',
+            title='Lista editada',
+            message=f'{edited_by.username} editó la lista "{list_obj.name}" en "{board.name}"',
+            board_id=board.id,
+        )
+
+
+def notify_board_created(board, created_by):
+    """Notifica al creador que se creó el tablero (confirmación)."""
+    create_notification(
+        user=created_by,
+        notif_type='board_created',
+        title='Tablero creado',
+        message=f'Creaste el tablero "{board.name}" exitosamente',
+        board_id=board.id,
+    )
+
+
+def notify_board_edited(board, edited_by):
+    """Notifica a miembros del tablero cuando se edita."""
+    recipients = _get_board_member_users(board, exclude_user=edited_by)
+    for user in recipients:
+        create_notification(
+            user=user,
+            notif_type='board_edited',
+            title='Tablero editado',
+            message=f'{edited_by.username} editó el tablero "{board.name}"',
+            board_id=board.id,
+        )
+
+
+def notify_role_changed(board, member_user, new_role, changed_by):
+    """Notifica al miembro cuando cambia su rol."""
+    if member_user.id == changed_by.id:
+        return
+    create_notification(
+        user=member_user,
+        notif_type='role_changed',
+        title='Rol cambiado',
+        message=f'{changed_by.username} cambió tu rol a "{new_role}" en "{board.name}"',
+        board_id=board.id,
+    )
+    log_activity(
+        changed_by,
+        board.id,
+        'change_role',
+        f'Cambió el rol de {member_user.username} a "{new_role}"',
+    )

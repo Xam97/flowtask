@@ -39,7 +39,7 @@ class SessionAuthMiddleware(BaseMiddleware):
                     key, value = cookie.split('=', 1)
                     cookies[key.strip()] = value.strip()
             
-            print(f"🔍 Todas las cookies parseadas: {list(cookies.keys())}")
+            print(f" Todas las cookies parseadas: {list(cookies.keys())}")
             
             # Buscar sessionid (posibles variaciones)
             session_key = cookies.get('sessionid') or cookies.get('session_id')
@@ -81,7 +81,7 @@ class SessionAuthMiddleware(BaseMiddleware):
             
             if user_id:
                 user = User.objects.get(id=user_id)
-                print(f"✅ Usuario encontrado: {user.email}")
+                print(f" Usuario encontrado: {user.email}")
                 return user
             else:
                 print(f" No hay _auth_user_id en sesión")

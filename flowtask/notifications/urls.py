@@ -5,7 +5,11 @@ from . import views
 app_name = 'notifications'
 
 urlpatterns = [
-    path('api/get/', views.get_notifications, name='get_notifications'),
-    path('api/mark/<int:notification_id>/', views.mark_as_read, name='mark_as_read'),
-    path('api/mark-all/', views.mark_all_as_read, name='mark_all_as_read'),
+    path('', views.notification_list, name='notification_list'),
+    path('unread-count/', views.unread_count, name='notification_unread_count'),
+    path('mark-all-read/', views.mark_all_read, name='notification_mark_all_read'),
+    path('delete-read/', views.delete_all_read, name='notification_delete_all_read'),
+    path('<int:notification_id>/', views.notification_detail, name='notification_detail'),
+    path('<int:notification_id>/read/', views.mark_read, name='notification_mark_read'),
+    path('<int:notification_id>/delete/', views.delete_notification, name='notification_delete'),
 ]

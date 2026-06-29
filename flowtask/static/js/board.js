@@ -26,13 +26,17 @@
      * Inicializar SortableJS para drag & drop
      */
     function initSortable() {
-        // Configurar cada contenedor de tarjetas
+        const boardContainer = document.querySelector('.kanban-container');
+        const canMove = boardContainer?.dataset.canMove !== 'false';
+        const canReorderLists = boardContainer?.dataset.canReorderLists === 'true';
+
         document.querySelectorAll('.cards-container').forEach(container => {
             const sortable = new Sortable(container, {
                 group: 'cards',
                 animation: 200,
                 ghostClass: 'sortable-ghost',
                 dragClass: 'sortable-drag',
+                disabled: !canMove,
                 onEnd: async function(evt) {
                     const cardId = evt.item.dataset.cardId;
                     const newListId = evt.to.dataset.listId;
@@ -58,7 +62,7 @@
         
         // Configurar ordenamiento de listas (si se desea)
         const kanbanContainer = document.querySelector('.kanban-container');
-        if (kanbanContainer) {
+        if (kanbanContainer && canReorderLists) {
             const listSortable = new Sortable(kanbanContainer, {
                 animation: 200,
                 handle: '.list-header',
