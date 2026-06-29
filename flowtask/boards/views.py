@@ -268,7 +268,7 @@ def create_card(request, list_id):
     
     title = request.POST.get('title')
     description = request.POST.get('description', '')
-    priority = request.POST.get('priority', 'medium')  # 🔥 CAPTURADO: Rescata la prioridad del formulario
+    priority = request.POST.get('priority', 'medium')
     assigned_to_id = request.POST.get('assigned_to')
     due_date = request.POST.get('due_date')
     

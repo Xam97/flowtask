@@ -152,8 +152,9 @@ const FlowTaskWebSocket = (function() {
                 case 'new_comment':
                     if (eventHandlers.onNewComment) {
                         eventHandlers.onNewComment(data.data);
+                    } else {
+                        addCommentToUI(data.data);
                     }
-                    addCommentToUI(data.data);
                     break;
                     
                 case 'card_updated':

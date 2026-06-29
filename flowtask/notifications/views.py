@@ -75,7 +75,7 @@ def unread_count(request):
 
 @login_required
 @require_http_methods(["POST"])
-def mark_as_read(request, notification_id):
+def mark_read(request, notification_id):
     """
     Marca una notificación como leída
     """
