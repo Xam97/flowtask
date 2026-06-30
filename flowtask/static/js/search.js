@@ -16,11 +16,17 @@
             }
 
             try {
-                const response = await fetch(`/boards/search/api/?q=${encodeURIComponent(query)}`, {
-                    credentials: 'same-origin',
-                });
-                const data = await response.json();
-                renderResults(data, query);
+                // Ejecutamos ambas búsquedas en paralelo usando Promise.all
+                const [workspaceResponse, contactsResponse] = await Promise.all([
+                    fetch(`/boards/search/api/?q=${encodeURIComponent(query)}`, { credentials: 'same-origin' }),
+                    fetch(`/api/contacts/search/?q=${encodeURIComponent(query)}`, { credentials: 'same-origin' })
+                ]);
+
+                const workspaceData = await workspaceResponse.json();
+                const contactsData = await contactsResponse.json();
+
+                // Unificamos el renderizado pasando ambos resultados
+                renderResults(workspaceData, contactsData, query);
             } catch (e) {
                 console.error('Search error:', e);
             }
@@ -45,14 +51,15 @@
         });
     });
 
-    function renderResults(data, query) {
+    function renderResults(workspaceData, users, query) {
         const dropdown = document.getElementById('searchDropdown');
         if (!dropdown) return;
 
-        const boards = data.boards || [];
-        const cards = data.cards || [];
+        const boards = workspaceData.boards || [];
+        const cards = workspaceData.cards || [];
 
-        if (boards.length === 0 && cards.length === 0) {
+        // Validamos si absolutamente todo vino vacío
+        if (boards.length === 0 && cards.length === 0 && (!users || users.length === 0)) {
             dropdown.innerHTML = `<div class="search-empty">Sin resultados para "${FlowTaskHelpers.escapeHtml(query)}"</div>`;
             dropdown.classList.add('show');
             return;
@@ -60,6 +67,42 @@
 
         let html = '';
 
+        // ================= SECCIÓN: USUARIOS =================
+        if (users && users.length > 0) {
+            html += '<div class="search-dropdown-section"><h6>Usuarios</h6>';
+            users.forEach(user => {
+                let buttonHTML = '';
+                
+                // Mapeo dinámico de botones según el estado calculado en DRF
+                if (user.contact_status === 'none') {
+                    buttonHTML = `<button class="btn btn-sm btn-primary" style="padding: 2px 8px; font-size: 0.75rem;" onclick="sendContactRequest(${user.id})">Añadir</button>`;
+                } else if (user.contact_status === 'pending_sent') {
+                    buttonHTML = `<span class="badge bg-warning text-dark" style="font-size: 0.7rem;">Enviada</span>`;
+                } else if (user.contact_status === 'pending_received') {
+                    buttonHTML = `<button class="btn btn-sm btn-success" style="padding: 2px 8px; font-size: 0.75rem;" onclick="respondContactRequest(${user.id}, 'accept')">Aceptar</button>`;
+                } else if (user.contact_status === 'accepted') {
+                    buttonHTML = `<span class="badge bg-success" style="font-size: 0.7rem;">Contacto</span>`;
+                }
+
+                html += `
+                    <div class="search-result-item" style="display: flex; justify-content: space-between; align-items: center; cursor: default;">
+                        <div style="display: flex; align-items: center;">
+                            <div class="search-result-icon" style="background: var(--primary-light, #e9ecef); color: var(--primary, #007bff);"><i class="fas fa-user"></i></div>
+                            <div class="search-result-text">
+                                <strong>${FlowTaskHelpers.escapeHtml(user.username)}</strong>
+                                <small>${FlowTaskHelpers.escapeHtml(user.first_name || '')} ${FlowTaskHelpers.escapeHtml(user.last_name || '')}</small>
+                            </div>
+                        </div>
+                        <div class="user-action-btn" style="margin-left: 10px;">
+                            ${buttonHTML}
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+        }
+
+        // ================= SECCIÓN: TABLEROS =================
         if (boards.length) {
             html += '<div class="search-dropdown-section"><h6>Tableros</h6>';
             boards.forEach(b => {
@@ -71,6 +114,7 @@
             html += '</div>';
         }
 
+        // ================= SECCIÓN: TAREAS =================
         if (cards.length) {
             html += '<div class="search-dropdown-section"><h6>Tareas</h6>';
             cards.forEach(c => {
@@ -85,6 +129,7 @@
             html += '</div>';
         }
 
+        // Pie del dropdown (Ver todos)
         html += `<div class="search-dropdown-section" style="padding:0.5rem;text-align:center;">
             <a href="/boards/search/?q=${encodeURIComponent(query)}" style="font-size:0.75rem;color:var(--accent);">Ver todos los resultados</a>
         </div>`;

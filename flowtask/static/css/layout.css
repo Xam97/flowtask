@@ -289,6 +289,63 @@ body.auth-page .navbar { background: transparent; box-shadow: none; border: none
     font-size: 0.8125rem;
 }
 
+/* Nuevos añadidos para la sección de Usuarios en el Buscador */
+
+/* Botones pequeños de acción rápida (Añadir / Aceptar) */
+.search-result-item .btn-sm {
+    padding: 0.25rem 0.625rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border-radius: var(--radius-sm);
+    border: none;
+    cursor: pointer;
+    transition: background var(--transition), transform var(--transition);
+}
+
+.search-result-item .btn-primary {
+    background: var(--accent);
+    color: #ffffff;
+}
+.search-result-item .btn-primary:hover {
+    background: var(--accent-hover, #0056b3);
+    transform: scale(1.02);
+}
+
+.search-result-item .btn-success {
+    background: var(--accent-green, #00c875);
+    color: #ffffff;
+}
+.search-result-item .btn-success:hover {
+    background: #00a862;
+    transform: scale(1.02);
+}
+
+/* Insignias de estado (Enviada / Contacto) */
+.search-result-item .badge {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.7rem;
+    font-weight: 500;
+    border-radius: var(--radius-sm);
+    display: inline-block;
+}
+
+.search-result-item .bg-warning {
+    background: rgba(255, 193, 7, 0.15) !important;
+    color: #ffc107 !important;
+}
+
+.search-result-item .bg-success {
+    background: rgba(0, 200, 117, 0.15) !important;
+    color: var(--accent-green) !important;
+}
+
+/* Contenedor dinámico del botón para que no se herede el comportamiento de enlace */
+.user-action-btn {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
 /* Navbar actions */
 .navbar-actions {
     display: flex;
