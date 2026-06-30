@@ -1,5 +1,6 @@
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
+from django.contrib.auth.models import User
 from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
@@ -41,6 +42,7 @@ def search_view(request):
 
     boards = []
     cards = []
+    users_list = []
 
     if query and len(query) >= 2:
         boards = Board.objects.filter(
@@ -56,10 +58,24 @@ def search_view(request):
             Q(title__icontains=query) | Q(description__icontains=query)
         ).select_related('list', 'list__board', 'assigned_to')[:20]
 
+        
+        raw_users = User.objects.filter(
+            (Q(username__icontains=query) | 
+             Q(first_name__icontains=query) | 
+             Q(last_name__icontains=query) | 
+             Q(email__icontains=query)) &
+            ~Q(id=request.user.id)
+        )[:10]
+
+        for u in raw_users:
+            u.contact_status = 'none'
+            users_list.append(u)
+
     return render(request, 'search/results.html', {
         'query': query,
         'boards': boards,
         'cards': cards,
+        'users': users_list,
     })
 
 

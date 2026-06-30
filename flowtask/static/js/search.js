@@ -137,4 +137,17 @@
         dropdown.innerHTML = html;
         dropdown.classList.add('show');
     }
+
+
+    // ================= FUNCIONES DE ACCIÓN GLOBAL =================
+    // Al definirlas en el objeto window, los atributos onclick dinámicos las encuentran al instante sin congelar el dropdown
+    window.sendContactRequest = function(userId) {
+        console.log("Enviando solicitud al usuario con ID:", userId);
+        // Aquí conectaremos el fetch POST más adelante hacia /api/contacts/send-request/
+    };
+
+    window.respondContactRequest = function(userId, action) {
+        console.log(`Respondiendo a la solicitud del usuario ${userId} con acción: ${action}`);
+        // Aquí conectaremos el fetch POST más adelante hacia /api/contacts/respond-request/
+    };
 })();

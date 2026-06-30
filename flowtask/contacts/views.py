@@ -12,6 +12,8 @@ User = get_user_model()
 class ContactViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     
+    queryset = ContactRequest.objects.all()
+    
     # 1. BUSCADOR DE USUARIOS INTEGRADO
     @action(detail=False, methods=['get'], url_path='search')
     def search_users(self, request):

@@ -7,14 +7,48 @@
     <div class="search-results-header">
         {% if query %}
         <h1>Resultados para <span class="query-highlight">"{{ query }}"</span></h1>
-        <p class="subtitle">{{ boards|length }} tablero{{ boards|length|pluralize:"s" }} y {{ cards|length }} tarea{{ cards|length|pluralize:"s" }} encontrada{{ cards|length|pluralize:"s" }}</p>
+        <p class="subtitle">
+            {{ boards|length }} tablero{{ boards|length|pluralize:"s" }}, 
+            {{ cards|length }} tarea{{ cards|length|pluralize:"s" }} y 
+            {{ users|length }} usuario{{ users|length|pluralize:"s" }} encontrado{{ users|length|pluralize:"s" }}
+        </p>
         {% else %}
         <h1>Buscar</h1>
-        <p class="subtitle">Escribe al menos 2 caracteres para buscar tableros y tareas</p>
+        <p class="subtitle">Escribe al menos 2 caracteres para buscar tableros, tareas y usuarios</p>
         {% endif %}
     </div>
 
     {% if query %}
+        {% if users %}
+        <div class="results-section">
+            <h2><i class="fas fa-users me-1"></i> Usuarios</h2>
+            <div class="result-list">
+                {% for u in users %}
+                <div class="result-item" style="display: flex; justify-content: space-between; align-items: center; cursor: default; text-decoration: none;">
+                    <div style="display: flex; align-items: center; gap: 0.625rem;">
+                        <div class="result-item-icon" style="background:rgba(0,123,255,0.12);color:#007bff;"><i class="fas fa-user"></i></div>
+                        <div>
+                            <strong>{{ u.username }}</strong>
+                            <div style="font-size:0.75rem;color:var(--text-muted);">{{ u.first_name }} {{ u.last_name }}</div>
+                        </div>
+                    </div>
+                    <div style="margin-right: 0.5rem;">
+                        {% if u.contact_status == 'none' %}
+                            <button class="btn btn-sm btn-primary" onclick="sendContactRequest({{ u.id }})">Añadir</button>
+                        {% elif u.contact_status == 'pending_sent' %}
+                            <span class="badge bg-warning text-dark" style="font-size: 0.75rem; padding: 0.25rem 0.5rem; border-radius: var(--radius-sm);">Enviada</span>
+                        {% elif u.contact_status == 'pending_received' %}
+                            <button class="btn btn-sm btn-success" onclick="respondContactRequest({{ u.id }}, 'accept')">Aceptar</button>
+                        {% elif u.contact_status == 'accepted' %}
+                            <span class="badge bg-success" style="font-size: 0.75rem; padding: 0.25rem 0.5rem; border-radius: var(--radius-sm); color: var(--accent-green);">Contacto</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
         {% if boards %}
         <div class="results-section">
             <h2><i class="fas fa-th-large me-1"></i> Tableros</h2>
@@ -49,7 +83,7 @@
         </div>
         {% endif %}
 
-        {% if not boards and not cards %}
+        {% if not boards and not cards and not users %}
         <div class="empty-state">
             <i class="fas fa-search"></i>
             <p>No se encontraron resultados para "{{ query }}"</p>

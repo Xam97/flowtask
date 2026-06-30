@@ -31,6 +31,8 @@ from .serializers import UserRegistrationSerializer
 # IMPORTACIÓN DE LA UTILERÍA DE NOTIFICACIONES
 from notifications.utils import crear_notificacion
 
+from django.db.models import Q
+
 
 # ========== VISTAS DE TABLEROS ==========
 
@@ -777,3 +779,57 @@ class RegisterView(generics.CreateAPIView):
         return Response({
             'errors': serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
+
+
+# ========== VISTA DE BÚSQUEDA GLOBAL (PÁGINA COMPLETA BLINDADA) ==========
+
+@login_required
+def search(request):
+    """
+    Procesa la búsqueda global completa y renderiza los resultados 
+    de tableros, tareas y usuarios en la interfaz principal.
+    """
+    query = request.GET.get('q', '').strip()
+    boards = []
+    cards = []
+    users_list = []
+
+    if len(query) >= 2:
+        # 1. Búsqueda de Tableros (asegurando distinct para evitar duplicados por ManyToMany)
+        boards = Board.objects.filter(
+            Q(name__icontains=query) & 
+            (Q(owner=request.user) | Q(members=request.user)) &
+            Q(is_archived=False)
+        ).distinct()
+
+        # 2. Búsqueda de Tarjetas (Tareas)
+        cards = Card.objects.filter(
+            Q(title__icontains=query) & 
+            (Q(list__board__owner=request.user) | Q(list__board__members=request.user)) &
+            Q(list__board__is_archived=False)
+        ).distinct()
+
+        # 3. BÚSQUEDA DE USUARIOS 
+        # Forzamos la búsqueda limpia en el modelo User nativo de Django
+        raw_users = User.objects.filter(
+            (Q(username__icontains=query) | 
+             Q(first_name__icontains=query) | 
+             Q(last_name__icontains=query) | 
+             Q(email__icontains=query)) &
+            ~Q(id=request.user.id) # Excluimos al usuario logueado
+        )
+
+        # 4. Asignación directa del estado para la interfaz
+        for u in raw_users:
+            # Seteamos 'none' temporalmente en duro para verificar que los renderice.
+            # Una vez que aparezcan, vinculamos esto con tu lógica de contactos real.
+            u.contact_status = 'none' 
+            users_list.append(u)
+
+    context = {
+        'query': query,
+        'boards': boards,
+        'cards': cards,
+        'users': users_list, # Enviamos la lista limpia
+    }
+    return render(request, 'boards/search.html', context)
