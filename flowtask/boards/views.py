@@ -430,6 +430,51 @@ def delete_card(request, card_id):
 # ========== VISTAS DE MIEMBROS ==========
 
 @login_required
+@require_http_methods(["GET"])
+def search_invite_candidates(request, board_id):
+    """
+    Autocompletado de usuarios para el modal de "Invitar Miembro".
+    Devuelve usuarios cuyo username/nombre coincide con la búsqueda,
+    excluyendo al dueño del tablero, a quienes ya son miembros y al
+    propio usuario que busca.
+    """
+    board = get_object_or_404(Board, pk=board_id)
+
+    can_manage = user_has_permission(request.user, board, 'manage_members')
+    can_invite = user_has_permission(request.user, board, 'invite_members')
+    if not can_manage and not can_invite:
+        return JsonResponse({'results': []}, status=403)
+
+    query = request.GET.get('q', '').strip()
+    if len(query) < 2:
+        return JsonResponse({'results': []})
+
+    excluded_ids = set(
+        Membership.objects.filter(board=board).values_list('user_id', flat=True)
+    )
+    excluded_ids.add(board.owner_id)
+    excluded_ids.add(request.user.id)
+
+    candidates = User.objects.filter(
+        Q(username__icontains=query) |
+        Q(first_name__icontains=query) |
+        Q(last_name__icontains=query)
+    ).exclude(id__in=excluded_ids)[:8]
+
+    return JsonResponse({
+        'results': [
+            {
+                'id': u.id,
+                'username': u.username,
+                'first_name': u.first_name,
+                'last_name': u.last_name,
+            }
+            for u in candidates
+        ]
+    })
+
+
+@login_required
 @require_http_methods(["POST"])
 def add_member(request, board_id):
     """
@@ -474,15 +519,6 @@ def add_member(request, board_id):
         
         membership = Membership.objects.create(user=user, board=board, role=role, **extra_perms)
         notify_member_added(user, board, request.user)
-        
-        # NOTIFICACIÓN: Nuevo miembro añadido al tablero (WebSocket + DB)
-        crear_notificacion(
-            recipient=user,
-            sender=request.user,
-            notification_type='member_added',
-            message=f"{request.user.username} te agregó como colaborador en el tablero '{board.name}'",
-            board_id=board.id
-        )
         
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return JsonResponse({

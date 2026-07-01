@@ -5,17 +5,116 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         const modal = document.getElementById('manageMembersModal');
-        if (!modal) return;
+        if (modal) {
+            modal.addEventListener('show.bs.modal', loadMembers);
 
-        modal.addEventListener('show.bs.modal', loadMembers);
+            modal.addEventListener('click', async (e) => {
+                const saveBtn = e.target.closest('.save-permissions-btn');
+                const removeBtn = e.target.closest('.remove-member-btn');
+                if (saveBtn) await savePermissions(saveBtn);
+                if (removeBtn) await removeMember(removeBtn);
+            });
+        }
 
-        modal.addEventListener('click', async (e) => {
-            const saveBtn = e.target.closest('.save-permissions-btn');
-            const removeBtn = e.target.closest('.remove-member-btn');
-            if (saveBtn) await savePermissions(saveBtn);
-            if (removeBtn) await removeMember(removeBtn);
-        });
+        initInviteAutocomplete();
     });
+
+    // ================= AUTOCOMPLETADO DE INVITACIÓN =================
+
+    function initInviteAutocomplete() {
+        const input = document.getElementById('inviteUsernameInput');
+        const hidden = document.getElementById('inviteUsernameHidden');
+        const suggestionsBox = document.getElementById('inviteSuggestions');
+        const submitBtn = document.getElementById('inviteSubmitBtn');
+        const addMemberModal = document.getElementById('addMemberModal');
+        if (!input || !hidden || !suggestionsBox || !submitBtn || !addMemberModal) return;
+
+        const boardId = document.querySelector('.kanban-container')?.dataset.boardId;
+        let debounceTimer = null;
+        let currentResults = [];
+
+        function invalidateSelection() {
+            hidden.value = '';
+            submitBtn.disabled = true;
+        }
+
+        input.addEventListener('input', () => {
+            invalidateSelection();
+            const query = input.value.trim();
+
+            clearTimeout(debounceTimer);
+            if (query.length < 2) {
+                suggestionsBox.classList.remove('show');
+                suggestionsBox.innerHTML = '';
+                return;
+            }
+
+            debounceTimer = setTimeout(() => fetchSuggestions(query), 250);
+        });
+
+        async function fetchSuggestions(query) {
+            try {
+                const response = await fetch(
+                    `/boards/${boardId}/members/search-invite/?q=${encodeURIComponent(query)}`,
+                    { credentials: 'same-origin' }
+                );
+                const data = await response.json();
+                currentResults = data.results || [];
+                renderSuggestions(currentResults);
+            } catch (error) {
+                console.error('Error buscando usuarios para invitar:', error);
+            }
+        }
+
+        function renderSuggestions(results) {
+            if (!results.length) {
+                suggestionsBox.innerHTML = '<div class="invite-suggestion-empty">Sin coincidencias</div>';
+                suggestionsBox.classList.add('show');
+                return;
+            }
+
+            suggestionsBox.innerHTML = results.map(u => {
+                const fullName = `${u.first_name || ''} ${u.last_name || ''}`.trim();
+                return `
+                    <div class="invite-suggestion-item" data-id="${u.id}" data-username="${FlowTaskHelpers.escapeHtml(u.username)}">
+                        <span class="invite-suggestion-avatar">${u.username.charAt(0).toUpperCase()}</span>
+                        <div>
+                            <strong>${FlowTaskHelpers.escapeHtml(u.username)}</strong>
+                            ${fullName ? `<small>${FlowTaskHelpers.escapeHtml(fullName)}</small>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            suggestionsBox.classList.add('show');
+        }
+
+        suggestionsBox.addEventListener('click', (e) => {
+            const item = e.target.closest('.invite-suggestion-item');
+            if (!item) return;
+
+            input.value = item.dataset.username;
+            hidden.value = item.dataset.username;
+            submitBtn.disabled = false;
+            suggestionsBox.classList.remove('show');
+            suggestionsBox.innerHTML = '';
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.invite-autocomplete-wrapper')) {
+                suggestionsBox.classList.remove('show');
+            }
+        });
+
+        // Reseteamos el formulario cada vez que se abre el modal para
+        // evitar que quede una selección vieja de una invitación anterior.
+        addMemberModal.addEventListener('show.bs.modal', () => {
+            input.value = '';
+            hidden.value = '';
+            submitBtn.disabled = true;
+            suggestionsBox.classList.remove('show');
+            suggestionsBox.innerHTML = '';
+        });
+    }
 
     async function loadMembers() {
         const container = document.getElementById('membersManagementList');

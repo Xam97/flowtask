@@ -33,6 +33,7 @@ urlpatterns = [
     
     # Miembros
     path('<int:board_id>/members/add/', views.add_member, name='add_member'),
+    path('<int:board_id>/members/search-invite/', views.search_invite_candidates, name='search_invite_candidates'),
     path('<int:board_id>/members/', views.board_members_api, name='board_members_api'),
     path('members/<int:membership_id>/remove/', views.remove_member, name='remove_member'),
     path('members/<int:membership_id>/permissions/', views.update_member_permissions, name='update_member_permissions'),

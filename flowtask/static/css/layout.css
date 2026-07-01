@@ -1387,3 +1387,54 @@ body.auth-page .navbar { background: transparent; box-shadow: none; border: none
     .user-dropdown span { display: none; }
     .main-content { padding: 0.75rem; }
 }
+
+/* Autocompletado de invitación a tablero */
+.invite-suggestions {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    z-index: 1100;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.invite-suggestions.show { display: block; }
+
+.invite-suggestion-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+}
+
+.invite-suggestion-item:hover { background: var(--bg-hover); }
+
+.invite-suggestion-avatar {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: rgba(87,155,252,0.15);
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.invite-suggestion-item strong { display: block; font-size: 0.8125rem; }
+.invite-suggestion-item small { color: var(--text-muted); font-size: 0.7rem; }
+
+.invite-suggestion-empty {
+    padding: 0.5rem 0.75rem;
+    color: var(--text-muted);
+    font-size: 0.8125rem;
+}
