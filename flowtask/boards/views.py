@@ -64,6 +64,32 @@ def user_owned_boards_api(request):
 
 
 @login_required
+@require_http_methods(["GET"])
+def board_summary_api(request, board_id):
+    """
+    Datos mínimos de un tablero para insertar su card en vivo en el
+    dashboard (usado cuando a alguien lo agregan como miembro por WebSocket,
+    sin tener que recargar la página).
+    """
+    board = get_object_or_404(Board, pk=board_id, is_archived=False)
+
+    if not user_can_access_board(request.user, board):
+        return JsonResponse({'success': False, 'error': 'Sin acceso'}, status=403)
+
+    return JsonResponse({
+        'success': True,
+        'board': {
+            'id': board.id,
+            'name': board.name,
+            'description': board.description or '',
+            'lists_count': board.lists.count(),
+            'cards_count': board.get_card_count(),
+            'is_owner': board.owner_id == request.user.id,
+        }
+    })
+
+
+@login_required
 def board_detail(request, pk):
     """
     Vista detallada de un tablero (vista Kanban)

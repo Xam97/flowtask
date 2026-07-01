@@ -18,6 +18,7 @@ urlpatterns = [
     path('<int:pk>/delete/', views.delete_board, name='delete_board'),
     path('<int:pk>/delete-permanent/', views.delete_board_permanent, name='delete_board_permanent'),
     path('api/user-owned-boards/', views.user_owned_boards_api, name='user_owned_boards_api'),
+    path('api/board-summary/<int:board_id>/', views.board_summary_api, name='board_summary_api'),
     
     # Listas
     path('<int:board_id>/lists/create/', views.create_list, name='create_list'),
