@@ -107,7 +107,7 @@ flowtask/
 
 Antes de instalar FlowTask, asegúrese de tener instalado en su sistema:
 
-- **Python 3.10 o superior (probado con Python 3.13)**: [Descargar Python](https://www.python.org/downloads/)
+- **Python 3.12 o superior (probado con Python 3.13)**: [Descargar Python](https://www.python.org/downloads/)
 - **pip**: Gestor de paquetes de Python (incluido con Python)
 - **Git**: Para clonar el repositorio (opcional)
 - **Editor de código**: VS Code, PyCharm, o similar (recomendado)

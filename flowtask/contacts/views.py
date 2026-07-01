@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from django.db.models import Q
 from .models import ContactRequest
 from .serializers import UserSearchSerializer
+from notifications.services import notify_contact_request_received, notify_contact_request_accepted
 
 User = get_user_model()
 
@@ -37,7 +38,12 @@ class ContactViewSet(viewsets.ModelViewSet):
         if not receiver_id:
             return Response({"detail": "Se requiere 'user_id'."}, status=status.HTTP_400_BAD_REQUEST)
 
-        if int(receiver_id) == request.user.id:
+        try:
+            receiver_id = int(receiver_id)
+        except (TypeError, ValueError):
+            return Response({"detail": "'user_id' inválido."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if receiver_id == request.user.id:
             return Response({"detail": "No podés auto-enviarte una solicitud."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
@@ -61,8 +67,7 @@ class ContactViewSet(viewsets.ModelViewSet):
         else:
             relation = ContactRequest.objects.create(sender=request.user, receiver=receiver)
 
-        # TODO: Aquí es donde podés llamar a tu service de notificaciones en tiempo real
-        NotificationService.send_contact_request_notification(sender=request.user, receiver=receiver)
+        notify_contact_request_received(receiver=receiver, sender=request.user, contact_request=relation)
 
         return Response({"detail": "Solicitud enviada correctamente.", "status": "pending_sent"}, status=status.HTTP_201_CREATED)
 
@@ -84,6 +89,11 @@ class ContactViewSet(viewsets.ModelViewSet):
         if action_type == 'accept':
             contact_request.status = 'accepted'
             contact_request.save()
+            notify_contact_request_accepted(
+                original_sender=contact_request.sender,
+                accepted_by=request.user,
+                contact_request=contact_request,
+            )
             return Response({"detail": "Solicitud aceptada. Ahora son contactos.", "status": "accepted"})
         else:
             contact_request.status = 'rejected'
@@ -109,3 +119,50 @@ class ContactViewSet(viewsets.ModelViewSet):
         contacts = User.objects.filter(id__in=contact_ids)
         serializer = UserSearchSerializer(contacts, many=True, context={'request': request})
         return Response(serializer.data)
+
+    # 5. SOLICITUDES PENDIENTES RECIBIDAS (para el icono dedicado de la navbar)
+    @action(detail=False, methods=['get'], url_path='pending-requests')
+    def pending_requests(self, request):
+        pending = ContactRequest.objects.filter(
+            receiver=request.user, status='pending'
+        ).select_related('sender').order_by('-created_at')
+
+        data = [
+            {
+                'request_id': req.id,
+                'id': req.sender.id,
+                'username': req.sender.username,
+                'first_name': req.sender.first_name,
+                'last_name': req.sender.last_name,
+                'created_at': req.created_at.strftime('%d/%m/%Y %H:%M'),
+            }
+            for req in pending
+        ]
+        return Response({'count': len(data), 'results': data})
+
+    # 6. ELIMINAR UN CONTACTO YA ACEPTADO
+    @action(detail=False, methods=['post'], url_path='remove-contact')
+    def remove_contact(self, request):
+        other_id = request.data.get('user_id')
+        if not other_id:
+            return Response({"detail": "Se requiere 'user_id'."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            other_id = int(other_id)
+        except (TypeError, ValueError):
+            return Response({"detail": "'user_id' inválido."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            other_user = User.objects.get(id=other_id)
+        except User.DoesNotExist:
+            return Response({"detail": "Usuario no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
+        relation = ContactRequest.objects.filter(
+            status='accepted'
+        ).get_relation_status(request.user, other_user)
+
+        if not relation:
+            return Response({"detail": "No son contactos."}, status=status.HTTP_404_NOT_FOUND)
+
+        relation.delete()
+        return Response({"detail": "Contacto eliminado correctamente."})

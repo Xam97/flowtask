@@ -4,11 +4,13 @@ from django.contrib.auth.models import User
 from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
-from django.views.decorators.http import require_GET, require_http_methods
+from django.views.decorators.http import require_GET, require_http_methods, require_POST
 from django.views.decorators.csrf import csrf_protect
 import json
 import re
 
+from contacts.models import ContactRequest
+from contacts.serializers import UserSearchSerializer
 from boards.models import Board, Card, Label, CardLabel
 from boards.utils import get_user_boards, get_accessible_board_ids, user_can_access_board
 from boards.permissions import user_has_permission, get_user_permissions
@@ -67,9 +69,7 @@ def search_view(request):
             ~Q(id=request.user.id)
         )[:10]
 
-        for u in raw_users:
-            u.contact_status = 'none'
-            users_list.append(u)
+        users_list = UserSearchSerializer(raw_users, many=True, context={'request': request}).data
 
     return render(request, 'search/results.html', {
         'query': query,
@@ -463,3 +463,29 @@ def toggle_card_label(request, card_id, label_id):
         attached = True
 
     return JsonResponse({'success': True, 'attached': attached})
+
+
+@login_required
+@require_GET
+def contacts_page(request):
+    """Página de gestión de contactos: lista mis contactos aceptados."""
+    accepted_relations = ContactRequest.objects.filter(
+        Q(status='accepted') & (Q(sender=request.user) | Q(receiver=request.user))
+    )
+
+    contact_ids = []
+    for rel in accepted_relations:
+        contact_ids.append(rel.receiver_id if rel.sender_id == request.user.id else rel.sender_id)
+
+    contacts = User.objects.filter(id__in=contact_ids).order_by('username')
+    contacts_data = UserSearchSerializer(contacts, many=True, context={'request': request}).data
+
+    pending_received = ContactRequest.objects.filter(
+        receiver=request.user, status='pending'
+    ).select_related('sender').order_by('-created_at')
+
+    return render(request, 'contacts/contacts.html', {
+        'contacts': contacts_data,
+        'pending_received': pending_received,
+        'contacts_count': len(contacts_data),
+    })

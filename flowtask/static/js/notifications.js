@@ -1,4 +1,4 @@
-// Panel de notificaciones en tiempo real con API ampliada
+// Panel de notificaciones en tiempo real
 
 (function() {
     'use strict';
@@ -54,6 +54,46 @@
         }
     }
 
+    // Generador de estructura para cada fila (reutilizable en render e hilos websocket)
+    function buildNotificationHTML(n) {
+        const isUnread = n.is_read ? '' : 'unread';
+        const formattedDate = formatDate(n.created_at);
+
+        let actionButtons = '';
+        // 💡 Si es una solicitud de contacto y viene de backend con estado pendiente
+        if (n.type === 'contact_request' && n.request_status === 'pending') {
+            actionButtons = `
+                <div class="notification-actions mt-2 d-flex gap-2" data-sender-id="${n.sender_id}" style="padding-left: 2.25rem;">
+                    <button class="btn btn-sm btn-success py-0 px-2" style="font-size: 0.75rem;" 
+                            onclick="respondContactRequest(${n.sender_id}, 'accept', this)">
+                        Aceptar
+                    </button>
+                    <button class="btn btn-sm btn-danger py-0 px-2" style="font-size: 0.75rem;" 
+                            onclick="respondContactRequest(${n.sender_id}, 'reject', this)">
+                        Rechazar
+                    </button>
+                </div>
+            `;
+        }
+
+        return `
+            <li class="notification-item ${isUnread}" data-id="${n.id}">
+                <a href="${getNotificationLink(n)}" class="notification-link">
+                    <span class="notification-icon-type">${getTypeIcon(n.type)}</span>
+                    <div class="notification-content">
+                        <strong>${FlowTaskHelpers.escapeHtml(n.title)}</strong>
+                        <p>${FlowTaskHelpers.escapeHtml(n.message)}</p>
+                        <small>${formattedDate}</small>
+                    </div>
+                </a>
+                <button class="notification-delete-btn" data-id="${n.id}" title="Eliminar">
+                    <i class="fas fa-times"></i>
+                </button>
+                ${actionButtons}
+            </li>
+        `;
+    }
+
     function renderNotifications(notifications, hasMore) {
         const list = document.getElementById('notificationList');
         if (!list) return;
@@ -63,21 +103,7 @@
             return;
         }
 
-        list.innerHTML = notifications.map(n => `
-            <li class="notification-item ${n.is_read ? '' : 'unread'}" data-id="${n.id}">
-                <a href="${getNotificationLink(n)}" class="notification-link">
-                    <span class="notification-icon-type">${getTypeIcon(n.type)}</span>
-                    <div class="notification-content">
-                        <strong>${FlowTaskHelpers.escapeHtml(n.title)}</strong>
-                        <p>${FlowTaskHelpers.escapeHtml(n.message)}</p>
-                        <small>${n.created_at}</small>
-                    </div>
-                </a>
-                <button class="notification-delete-btn" data-id="${n.id}" title="Eliminar">
-                    <i class="fas fa-times"></i>
-                </button>
-            </li>
-        `).join('');
+        list.innerHTML = notifications.map(n => buildNotificationHTML(n)).join('');
 
         if (hasMore) {
             const loadMore = document.createElement('li');
@@ -96,6 +122,7 @@
 
     function getNotificationLink(n) {
         if (n.board_id) return `/boards/${n.board_id}/`;
+        if (n.type === 'contact_request' || n.type === 'contact_accepted') return '/boards/contacts/';
         return '#';
     }
 
@@ -106,6 +133,8 @@
             member_added: '<i class="fas fa-users"></i>',
             card_moved: '<i class="fas fa-arrows-alt"></i>',
             card_deleted: '<i class="fas fa-trash"></i>',
+            contact_request: '<i class="fas fa-user-plus text-primary"></i>',
+            contact_accepted: '<i class="fas fa-user-check text-success"></i>',
         };
         return icons[type] || '<i class="fas fa-bell"></i>';
     }
@@ -116,25 +145,11 @@
             const empty = list.querySelector('.notification-empty');
             if (empty) empty.remove();
 
-            const item = document.createElement('li');
-            item.className = 'notification-item unread';
-            item.dataset.id = data.id;
-            item.innerHTML = `
-                <a href="${getNotificationLink(data)}" class="notification-link">
-                    <span class="notification-icon-type">${getTypeIcon(data.type)}</span>
-                    <div class="notification-content">
-                        <strong>${FlowTaskHelpers.escapeHtml(data.title)}</strong>
-                        <p>${FlowTaskHelpers.escapeHtml(data.message)}</p>
-                        <small>${data.created_at}</small>
-                    </div>
-                </a>
-                <button class="notification-delete-btn" data-id="${data.id}" title="Eliminar">
-                    <i class="fas fa-times"></i>
-                </button>
-            `;
-            list.prepend(item);
+            const itemHTML = buildNotificationHTML(data);
+            list.insertAdjacentHTML('afterbegin', itemHTML);
 
-            item.addEventListener('click', () => markAsRead(data.id));
+            const insertedItem = list.querySelector(`.notification-item[data-id="${data.id}"]`);
+            insertedItem.querySelector('.notification-link').addEventListener('click', () => markAsRead(data.id));
         }
 
         const badge = document.getElementById('notificationBadge');
@@ -160,7 +175,7 @@
 
     async function markAsRead(id) {
         try {
-            const response = await fetch(`/notifications/api/mark/${id}/`, {
+            const response = await fetch(`/notifications/${id}/read/`, {
                 method: 'POST',
                 headers: { 'X-CSRFToken': FlowTaskHelpers.getCSRFToken() },
                 credentials: 'same-origin',
@@ -186,7 +201,7 @@
 
     async function markAllRead() {
         try {
-            const response = await fetch('/notifications/api/mark-all/', {
+            const response = await fetch('/notifications/mark-all-read/', {
                 method: 'POST',
                 headers: { 'X-CSRFToken': FlowTaskHelpers.getCSRFToken() },
                 credentials: 'same-origin',
@@ -209,9 +224,15 @@
                 headers: { 'X-CSRFToken': FlowTaskHelpers.getCSRFToken() },
                 credentials: 'same-origin',
             });
+            
             const data = await response.json();
-            document.querySelector(`.notification-item[data-id="${id}"]`)?.remove();
-            updateBadge(data.unread_count);
+            
+            if (response.ok && data.success) {
+                document.querySelector(`.notification-item[data-id="${id}"]`)?.remove();
+                updateBadge(data.unread_count);
+            } else {
+                FlowTaskHelpers.showToast(data.error || 'No se puede eliminar', 'error');
+            }
         } catch (error) {
             console.error('Error eliminando notificación:', error);
         }
@@ -227,7 +248,7 @@
             const data = await response.json();
             loadNotifications();
             updateBadge(data.unread_count);
-            FlowTaskHelpers.showToast(`${data.deleted_count} notificaciones eliminadas`, 'success');
+            FlowTaskHelpers.showToast(`${data.deleted_count} notificaciones procesadas`, 'success');
         } catch (error) {
             console.error('Error:', error);
         }

@@ -75,17 +75,22 @@
                 
                 // Mapeo dinámico de botones según el estado calculado en DRF
                 if (user.contact_status === 'none') {
-                    buttonHTML = `<button class="btn btn-sm btn-primary" style="padding: 2px 8px; font-size: 0.75rem;" onclick="sendContactRequest(${user.id})">Añadir</button>`;
+                    buttonHTML = `<button class="btn btn-sm btn-primary" style="padding: 2px 8px; font-size: 0.75rem;" onclick="sendContactRequest(${user.id}, this)">Añadir</button>`;
                 } else if (user.contact_status === 'pending_sent') {
                     buttonHTML = `<span class="badge bg-warning text-dark" style="font-size: 0.7rem;">Enviada</span>`;
                 } else if (user.contact_status === 'pending_received') {
-                    buttonHTML = `<button class="btn btn-sm btn-success" style="padding: 2px 8px; font-size: 0.75rem;" onclick="respondContactRequest(${user.id}, 'accept')">Aceptar</button>`;
+                    buttonHTML = `
+                        <div class="d-flex gap-1">
+                            <button class="btn btn-sm btn-success" style="padding: 2px 8px; font-size: 0.75rem;" onclick="respondContactRequest(${user.id}, 'accept', this)">Aceptar</button>
+                            <button class="btn btn-sm btn-danger" style="padding: 2px 8px; font-size: 0.75rem;" onclick="respondContactRequest(${user.id}, 'reject', this)">Rechazar</button>
+                        </div>
+                    `;
                 } else if (user.contact_status === 'accepted') {
                     buttonHTML = `<span class="badge bg-success" style="font-size: 0.7rem;">Contacto</span>`;
                 }
 
                 html += `
-                    <div class="search-result-item" style="display: flex; justify-content: space-between; align-items: center; cursor: default;">
+                    <div class="search-result-item" style="display: flex; justify-content: space-between; align-items: center; cursor: default;" data-user-id="${user.id}">
                         <div style="display: flex; align-items: center;">
                             <div class="search-result-icon" style="background: var(--primary-light, #e9ecef); color: var(--primary, #007bff);"><i class="fas fa-user"></i></div>
                             <div class="search-result-text">
@@ -137,17 +142,4 @@
         dropdown.innerHTML = html;
         dropdown.classList.add('show');
     }
-
-
-    // ================= FUNCIONES DE ACCIÓN GLOBAL =================
-    // Al definirlas en el objeto window, los atributos onclick dinámicos las encuentran al instante sin congelar el dropdown
-    window.sendContactRequest = function(userId) {
-        console.log("Enviando solicitud al usuario con ID:", userId);
-        // Aquí conectaremos el fetch POST más adelante hacia /api/contacts/send-request/
-    };
-
-    window.respondContactRequest = function(userId, action) {
-        console.log(`Respondiendo a la solicitud del usuario ${userId} con acción: ${action}`);
-        // Aquí conectaremos el fetch POST más adelante hacia /api/contacts/respond-request/
-    };
 })();

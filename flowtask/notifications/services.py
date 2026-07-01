@@ -6,7 +6,7 @@ from .models import Notification, Activity
 
 
 def _notification_payload(notification):
-    return {
+    payload = {
         'id': notification.id,
         'type': notification.type,
         'title': notification.title,
@@ -15,7 +15,21 @@ def _notification_payload(notification):
         'card_id': notification.card_id,
         'is_read': notification.is_read,
         'created_at': notification.created_at.strftime('%d/%m/%Y %H:%M'),
+        'sender_id': notification.sender_id,
+        'sender_username': notification.sender.username if notification.sender else None,
+        'contact_request_id': notification.contact_request_id,
     }
+
+    if notification.type in ('contact_request', 'contact_accepted') and notification.contact_request_id:
+        # Resolvemos el estado actual de la solicitud para que el frontend
+        # sepa si todavía debe mostrar los botones de Aceptar/Rechazar.
+        from contacts.models import ContactRequest
+        request_status = ContactRequest.objects.filter(
+            id=notification.contact_request_id
+        ).values_list('status', flat=True).first()
+        payload['request_status'] = request_status
+
+    return payload
 
 
 def push_notification_ws(user_id, notification):
@@ -26,12 +40,18 @@ def push_notification_ws(user_id, notification):
         f'notifications_{user_id}',
         {
             'type': 'send_notification',
-            'data': _notification_payload(notification),
+            # OJO: el handler send_notification() en boards/consumers.py
+            # (el consumer realmente enlazado en core/asgi.py) lee
+            # event['notification'], no event['data']. Antes se mandaba
+            # 'data' y el consumer tiraba un KeyError silencioso en el
+            # servidor, por eso la notificación nunca llegaba en vivo.
+            'notification': _notification_payload(notification),
         },
     )
 
 
-def create_notification(user, notif_type, title, message, board_id=None, card_id=None, push=True):
+def create_notification(user, notif_type, title, message, board_id=None, card_id=None,
+                         sender=None, contact_request_id=None, push=True):
     notification = Notification.objects.create(
         user=user,
         type=notif_type,
@@ -39,10 +59,36 @@ def create_notification(user, notif_type, title, message, board_id=None, card_id
         message=message,
         board_id=board_id,
         card_id=card_id,
+        sender=sender,
+        contact_request_id=contact_request_id,
     )
     if push:
         push_notification_ws(user.id, notification)
     return notification
+
+
+def notify_contact_request_received(receiver, sender, contact_request):
+    """Notifica al receptor que le llegó una nueva solicitud de contacto."""
+    return create_notification(
+        user=receiver,
+        notif_type='contact_request',
+        title='Solicitud de contacto',
+        message=f'{sender.username} quiere agregarte como contacto',
+        sender=sender,
+        contact_request_id=contact_request.id,
+    )
+
+
+def notify_contact_request_accepted(original_sender, accepted_by, contact_request):
+    """Notifica a quien envió la solicitud que fue aceptada."""
+    return create_notification(
+        user=original_sender,
+        notif_type='contact_accepted',
+        title='Solicitud aceptada',
+        message=f'{accepted_by.username} aceptó tu solicitud de contacto',
+        sender=accepted_by,
+        contact_request_id=contact_request.id,
+    )
 
 
 def log_activity(user, board_id, action, description, card_id=None):

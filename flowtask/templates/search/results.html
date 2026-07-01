@@ -32,13 +32,22 @@
                             <div style="font-size:0.75rem;color:var(--text-muted);">{{ u.first_name }} {{ u.last_name }}</div>
                         </div>
                     </div>
-                    <div style="margin-right: 0.5rem;">
+                    <div style="margin-right: 0.5rem;" class="user-action-btn" data-user-id="{{ u.id }}">
                         {% if u.contact_status == 'none' %}
-                            <button class="btn btn-sm btn-primary" onclick="sendContactRequest({{ u.id }})">Añadir</button>
+                            <button class="btn btn-sm btn-primary" onclick="sendContactRequest({{ u.id }}, this)">
+                                <i class="fas fa-user-plus"></i> Añadir
+                            </button>
                         {% elif u.contact_status == 'pending_sent' %}
                             <span class="badge bg-warning text-dark" style="font-size: 0.75rem; padding: 0.25rem 0.5rem; border-radius: var(--radius-sm);">Enviada</span>
                         {% elif u.contact_status == 'pending_received' %}
-                            <button class="btn btn-sm btn-success" onclick="respondContactRequest({{ u.id }}, 'accept')">Aceptar</button>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-sm btn-success" onclick="respondContactRequest({{ u.id }}, 'accept', this)">
+                                    Aceptar
+                                </button>
+                                <button class="btn btn-sm btn-danger" onclick="respondContactRequest({{ u.id }}, 'reject', this)">
+                                    Rechazar
+                                </button>
+                            </div>
                         {% elif u.contact_status == 'accepted' %}
                             <span class="badge bg-success" style="font-size: 0.75rem; padding: 0.25rem 0.5rem; border-radius: var(--radius-sm); color: var(--accent-green);">Contacto</span>
                         {% endif %}

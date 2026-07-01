@@ -817,13 +817,26 @@ def search(request):
              Q(last_name__icontains=query) | 
              Q(email__icontains=query)) &
             ~Q(id=request.user.id) # Excluimos al usuario logueado
-        )
+        )[:10]
 
-        # 4. Asignación directa del estado para la interfaz
         for u in raw_users:
-            # Seteamos 'none' temporalmente en duro para verificar que los renderice.
-            # Una vez que aparezcan, vinculamos esto con tu lógica de contactos real.
-            u.contact_status = 'none' 
+            # Buscamos si existe alguna solicitud pendiente o aceptada entre ambos
+            req = ContactRequest.objects.filter(
+                (Q(sender=request.user) & Q(receiver=u)) |
+                (Q(sender=u) & Q(receiver=request.user))
+            ).first()
+            
+            if req:
+                if req.status == 'accepted':
+                    u.contact_status = 'accepted'
+                elif req.status == 'pending':
+                    if req.sender == request.user:
+                        u.contact_status = 'pending_sent'     # Yo le envié
+                    else:
+                        u.contact_status = 'pending_received' # Él me envió (Debo Aceptar)
+            else:
+                u.contact_status = 'none' # No hay relación previa
+                
             users_list.append(u)
 
     context = {

@@ -39,6 +39,7 @@ urlpatterns = [
 
     path('search/', search_views.search_view, name='search'),
     path('search/api/', search_views.search_api, name='search_api'),
+    path('contacts/', search_views.contacts_page, name='contacts_page'),
     path('calendar/', search_views.calendar_view, name='calendar'),
     path('panel/', search_views.panel_view, name='panel'),
     path('labels/', search_views.labels_view, name='labels'),

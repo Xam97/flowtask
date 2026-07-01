@@ -795,6 +795,7 @@ body.auth-page .navbar { background: transparent; box-shadow: none; border: none
 .nav-item .nav-icon-boards { background: linear-gradient(135deg, rgba(0,115,234,0.2), rgba(0,115,234,0.1)); color: var(--accent); }
 .nav-item .nav-icon-calendar { background: linear-gradient(135deg, rgba(253,171,61,0.2), rgba(253,171,61,0.1)); color: var(--accent-orange); }
 .nav-item .nav-icon-activity { background: linear-gradient(135deg, rgba(162,93,220,0.2), rgba(162,93,220,0.1)); color: var(--accent-purple); }
+.nav-item .nav-icon-contacts { background: linear-gradient(135deg, rgba(0,200,117,0.2), rgba(0,200,117,0.1)); color: var(--accent-green); }
 .nav-item .nav-icon-labels { background: linear-gradient(135deg, rgba(0,200,117,0.2), rgba(0,200,117,0.1)); color: var(--accent-green); }
 .nav-item .nav-icon-panel { background: linear-gradient(135deg, rgba(0,134,192,0.2), rgba(0,134,192,0.1)); color: var(--accent-cyan); }
 .nav-item .nav-icon-search { background: linear-gradient(135deg, rgba(255,100,46,0.2), rgba(255,100,46,0.1)); color: var(--accent-pink); }
