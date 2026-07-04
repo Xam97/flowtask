@@ -80,6 +80,12 @@ function inicializarSortable() {
                     if (data.success) {
                         console.log('Tarjeta movida correctamente en DB');
                         evt.item.style.opacity = '1';
+
+                        // Sincronizamos cabecera (contador) y placeholder tanto de la
+                        // lista de origen como de destino en nuestra propia pantalla,
+                        // ya que SortableJS solo mueve el nodo HTML sin tocar esto.
+                        actualizarEstadoLista(evt.from.dataset.listId);
+                        actualizarEstadoLista(evt.to.dataset.listId);
                     } else {
                         console.error('Error:', data.error);
                         location.reload();
@@ -204,12 +210,6 @@ function renderizarNuevaTarjetaEnVivo(cardData) {
     // Validar si la tarjeta ya fue añadida por el usuario que la creó (para evitar duplicados)
     if (document.querySelector(`[data-card-id="${cardData.card_id}"]`)) return;
     
-    // 1. Remover el placeholder de "No hay tareas" si es que existe en la lista
-    const placeholder = contenedorTarjetas.querySelector(`.empty-placeholder-${cardData.list_id}`);
-    if (placeholder) {
-        placeholder.remove();
-    }
-    
     // 2. Construcción del HTML clónando exactamente la misma estructura y clases de tu board_detail.html
     const nuevaTarjetaHtml = `
         <div class="card-item" data-card-id="${cardData.card_id}" data-position="${cardData.position || 0}">
@@ -244,12 +244,8 @@ function renderizarNuevaTarjetaEnVivo(cardData) {
     // Inyectar al final de la lista
     contenedorTarjetas.insertAdjacentHTML('beforeend', nuevaTarjetaHtml);
     
-    // 3. Incrementar el contador (badge) de la cabecera de la lista
-    const badgeContador = document.getElementById(`list-badge-${cardData.list_id}`);
-    if (badgeContador) {
-        let cantidadActual = parseInt(badgeContador.textContent) || 0;
-        badgeContador.textContent = cantidadActual + 1;
-    }
+    // 3. Sincronizar cabecera (contador) y placeholder según el estado real
+    actualizarEstadoLista(cardData.list_id);
     
     // 🔥 CRÍTICO: Como es un elemento HTML nuevo, re-inicializamos Sortable para que responda al Drag & Drop
     inicializarSortable();
@@ -259,10 +255,18 @@ function renderizarNuevaTarjetaEnVivo(cardData) {
  * Mueve visualmente una tarjeta existente cuando otro usuario la cambia de lugar.
  */
 function moverTarjetaEnVivo(moveData) {
+    // Si fuimos nosotros quienes movimos la tarjeta, SortableJS ya la dejó
+    // en su lugar correcto en nuestro propio navegador; evitamos re-animarla.
+    const miUsername = document.body.dataset.username;
+    if (moveData.moved_by && miUsername && moveData.moved_by === miUsername) return;
+
     const tarjeta = document.querySelector(`[data-card-id="${moveData.card_id}"]`);
     const destinoLista = document.querySelector(`[data-list-id="${moveData.list_id}"] .cards-container`);
     
     if (tarjeta && destinoLista) {
+        const origenListaEl = tarjeta.closest('.kanban-list');
+        const origenListaId = origenListaEl ? origenListaEl.dataset.listId : null;
+
         // Desvanecimiento suave para el movimiento
         tarjeta.style.opacity = '0';
         
@@ -270,8 +274,44 @@ function moverTarjetaEnVivo(moveData) {
             // Mover el nodo HTML hacia el contenedor de la nueva lista
             destinoLista.appendChild(tarjeta);
             tarjeta.style.opacity = '1';
+
+            // Sincronizar cabecera (contador) y placeholder de origen y destino
+            if (origenListaId) actualizarEstadoLista(origenListaId);
+            actualizarEstadoLista(moveData.list_id);
+
             console.log(`Sincronizado: Tarjeta ${moveData.card_id} movida por ${moveData.moved_by}`);
         }, 200);
+    }
+}
+
+/**
+ * Recalcula desde el DOM la cantidad real de tarjetas de una lista y
+ * sincroniza tanto el contador de la cabecera como el placeholder de
+ * "No hay tareas". Recontar en vez de sumar/restar evita que el contador
+ * quede desincronizado si se pierde algún evento.
+ */
+function actualizarEstadoLista(listId) {
+    const listaEl = document.querySelector(`.kanban-list[data-list-id="${listId}"]`);
+    if (!listaEl) return;
+
+    const contenedor = listaEl.querySelector('.cards-container');
+    if (!contenedor) return;
+
+    const cantidad = contenedor.querySelectorAll('.card-item').length;
+
+    const badge = document.getElementById(`list-badge-${listId}`);
+    if (badge) badge.textContent = cantidad;
+
+    let placeholder = contenedor.querySelector(`.empty-placeholder-${listId}`);
+    if (cantidad === 0) {
+        if (!placeholder) {
+            placeholder = document.createElement('div');
+            placeholder.className = `empty-cards empty-placeholder-${listId}`;
+            placeholder.textContent = 'No hay tareas';
+            contenedor.appendChild(placeholder);
+        }
+    } else if (placeholder) {
+        placeholder.remove();
     }
 }
 
