@@ -2,88 +2,113 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="FlowTask - Gestión de tareas estilo Kanban">
-    <title>FlowTask {% block title %}{% endblock %}</title>
-    
-    {# Bootstrap 5.3 CSS - Solo para grid, layout y componentes base #}
+    <title>{% block title %}FlowTask{% endblock %}</title>
+
+    <script>
+        (function() {
+            var theme = localStorage.getItem('flowtask-theme') || 'light';
+            if (theme === 'auto') {
+                theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            }
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    
-    {# CSS personalizado de FlowTask #}
     {% load static %}
     <link rel="stylesheet" href="{% static 'css/layout.css' %}">
     <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
     <link rel="stylesheet" href="{% static 'css/auth.css' %}">
     <link rel="stylesheet" href="{% static 'css/boards.css' %}">
-    
-    {# Google Fonts para tipografía moderna #}
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    {# Font Awesome 6 (gratuito) para iconos #}
+    <link rel="stylesheet" href="{% static 'css/pages.css' %}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
     {% block extra_css %}{% endblock %}
 </head>
-<body {% if user.is_authenticated %}data-user-id="{{ user.id }}" data-username="{{ user.username }}"{% endif %}>
-    {# NAVBAR PRINCIPAL #}
+<body class="{% if not user.is_authenticated %}auth-page{% endif %}"
+      {% if user.is_authenticated %}data-user-id="{{ user.id }}" data-username="{{ user.username }}"{% endif %}>
+
     <nav class="navbar navbar-expand-lg sticky-top">
         <div class="container-fluid">
-            {# Logo y marca #}
-            <a class="navbar-brand" href="{% url 'dashboard' %}">
-                <i class="fas fa-tasks"></i>
+            <a class="navbar-brand" href="{% if user.is_authenticated %}{% url 'dashboard' %}{% else %}{% url 'login' %}{% endif %}">
+                <i class="fas fa-layer-group"></i>
                 <span>FlowTask</span>
             </a>
-            
-            {# Botón toggler para mobile #}
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+
+            {% if user.is_authenticated %}
+            <button class="navbar-toggler" type="button" id="mobileSidebarToggle">
                 <i class="fas fa-bars"></i>
             </button>
-            
-            {# Contenido colapsable del navbar #}
+
             <div class="collapse navbar-collapse" id="navbarNav">
-                {# Búsqueda global #}
-                <form class="search-form d-flex mx-auto" role="search">
-                    <input class="form-control" type="search" placeholder="Buscar tareas, tableros..." aria-label="Search">
-                    <button class="btn" type="submit">
-                        <i class="fas fa-search"></i>
-                    </button>
-                </form>
-                
-                {# Menú de usuario #}
-                <ul class="navbar-nav ms-auto">
-                    {# Notificaciones #}
-                    {% if user.is_authenticated %}
+                <div class="search-wrapper">
+                    <form id="globalSearchForm" class="search-form" action="/boards/search/" method="get">
+                        <i class="fas fa-search search-icon"></i>
+                        <input type="text" id="globalSearchInput" name="q" class="form-control" placeholder="Buscar..." autocomplete="off">
+                        <button type="submit" class="btn-search-submit"><i class="fas fa-arrow-right"></i></button>
+                    </form>
+                    <div id="searchDropdown" class="search-dropdown"></div>
+                </div>
+
+                <ul class="navbar-nav ms-auto navbar-actions">
+                    <li class="nav-item">
+                        <button class="nav-action-btn theme-toggle" id="themeToggle" title="Cambiar tema">
+                            <i class="fas fa-moon"></i>
+                            <i class="fas fa-sun"></i>
+                        </button>
+                    </li>
+                    <li class="nav-item contact-requests-wrapper notification-wrapper">
+                        <button class="nav-action-btn notification-icon" id="contactRequestsToggle" title="Solicitudes de contacto">
+                            <i class="fas fa-user-clock"></i>
+                            <span class="badge" id="contactRequestsBadge" style="display:none;">0</span>
+                        </button>
+                        <div class="notification-panel" id="contactRequestsPanel">
+                            <div class="notification-panel-header">
+                                <h6>Solicitudes de contacto</h6>
+                                <a href="{% url 'contacts_page' %}" class="btn btn-sm btn-notification-action">
+                                    <i class="fas fa-address-book"></i> Mis contactos
+                                </a>
+                            </div>
+                            <ul class="notification-list" id="contactRequestsList">
+                                <li class="notification-empty">Cargando...</li>
+                            </ul>
+                        </div>
+                    </li>
                     <li class="nav-item notification-wrapper">
-                        <a class="nav-link notification-icon" href="#" id="notificationToggle">
+                        <button class="nav-action-btn notification-icon" id="notificationToggle" title="Notificaciones">
                             <i class="fas fa-bell"></i>
-                            <span class="badge" id="notificationBadge" style="display: none;">0</span>
-                        </a>
+                            <span class="badge" id="notificationBadge" style="display:none;">0</span>
+                        </button>
                         <div class="notification-panel" id="notificationPanel">
                             <div class="notification-panel-header">
                                 <h6>Notificaciones</h6>
-                                <button class="btn btn-sm btn-link" id="markAllReadBtn">Marcar todas</button>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-sm btn-notification-action" id="markAllReadBtn" title="Marcar todas como leídas">
+                                        <i class="fas fa-check-double"></i> Marcar todas
+                                    </button>
+                                    <button class="btn btn-sm btn-notification-action btn-notification-danger" id="deleteReadBtn" title="Eliminar leídas">
+                                        <i class="fas fa-trash-alt"></i> Limpiar
+                                    </button>
+                                </div>
                             </div>
                             <ul class="notification-list" id="notificationList">
                                 <li class="notification-empty">Cargando...</li>
                             </ul>
                         </div>
                     </li>
-                    {% endif %}
-                    
-                    {# Perfil de usuario #}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle user-dropdown" href="#" data-bs-toggle="dropdown">
-                            {% if user.is_authenticated %}
-                                <i class="fas fa-user-circle"></i>
-                                <span>{{ user.username }}</span>
-                            {% endif %}
+                            <span class="user-avatar-sm">{{ user.username|make_list|first|upper }}</span>
+                            <span>{{ user.username }}</span>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-user"></i> Mi Perfil</a></li>
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-sliders-h"></i> Preferencias</a></li>
+                            <li><a class="dropdown-item" href="{% url 'profile' %}"><i class="fas fa-user"></i> Mi Perfil</a></li>
+                            <li><a class="dropdown-item" href="{% url 'preferences' %}"><i class="fas fa-sliders-h"></i> Preferencias</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li>
-                                <form method="POST" action="{% url 'logout' %}" class="d-inline">
+                                <form method="POST" action="{% url 'logout' %}">
                                     {% csrf_token %}
                                     <button type="submit" class="dropdown-item text-danger">
                                         <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
@@ -94,126 +119,141 @@
                     </li>
                 </ul>
             </div>
+            {% endif %}
         </div>
     </nav>
-    
-    {# CONTENEDOR PRINCIPAL CON SIDEBAR #}
+
     <div class="app-container">
-        {# SIDEBAR - Colapsable en mobile #}
+        {% if user.is_authenticated %}
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
-                <button class="sidebar-toggle" id="sidebarToggle">
+                <span class="sidebar-logo">WORKSPACE</span>
+                <button class="sidebar-toggle" id="sidebarToggle" title="Colapsar">
                     <i class="fas fa-chevron-left"></i>
                 </button>
             </div>
-            
+
             <div class="sidebar-content">
-                {# Menú principal #}
+                <div class="sidebar-stats">
+                    <div class="sidebar-stat">
+                        <div class="stat-value">{{ user_board_count|default:0 }}</div>
+                        <div class="stat-label">Tableros</div>
+                    </div>
+                    <div class="sidebar-stat">
+                        <div class="stat-value">{{ user_pending_tasks|default:0 }}</div>
+                        <div class="stat-label">Pendientes</div>
+                    </div>
+                </div>
+
                 <nav class="sidebar-nav">
-                    <a href="{% url 'dashboard' %}" class="nav-item active">
-                        <i class="fas fa-chalkboard"></i>
+                    <a href="{% url 'dashboard' %}" class="nav-item {% if nav_active == 'dashboard' or nav_active == 'home' or nav_active == 'board_list' %}active{% endif %}">
+                        <i class="nav-icon-boards fas fa-th-large"></i>
                         <span>Tableros</span>
                     </a>
-                    <a href="#" class="nav-item">
-                        <i class="fas fa-calendar-alt"></i>
+                    <a href="{% url 'calendar' %}" class="nav-item {% if nav_active == 'calendar' %}active{% endif %}">
+                        <i class="nav-icon-calendar fas fa-calendar-alt"></i>
                         <span>Calendario</span>
                     </a>
-                    <a href="#" class="nav-item">
-                        <i class="fas fa-clock"></i>
+                    <a href="{% url 'activity' %}" class="nav-item {% if nav_active == 'activity' %}active{% endif %}">
+                        <i class="nav-icon-activity fas fa-stream"></i>
                         <span>Actividad</span>
                     </a>
-                    <a href="#" class="nav-item">
-                        <i class="fas fa-tag"></i>
-                        <span>Etiquetas</span>
+                    <a href="{% url 'contacts_page' %}" class="nav-item {% if nav_active == 'contacts_page' %}active{% endif %}">
+                        <i class="nav-icon-contacts fas fa-address-book"></i>
+                        <span>Contactos</span>
+                    </a>
+                    <a href="{% url 'panel' %}" class="nav-item {% if nav_active == 'panel' %}active{% endif %}">
+                        <i class="nav-icon-labels fas fa-chart-line"></i>
+                        <span>Panel</span>
                     </a>
                 </nav>
-                
-                <hr>
-                
-                {# Tableros recientes #}
+
                 <div class="recent-boards">
                     <h6>Recientes</h6>
-                    <div class="board-list">
-                        {# Se llenará dinámicamente con JavaScript #}
-                        <div class="board-item">
-                            <i class="fas fa-columns"></i>
-                            <span>Proyecto FlowTask</span>
+                    <div class="board-list" id="recentBoardsList">
+                        <div class="board-item board-item-empty" style="opacity:0.5;font-size:0.7rem;padding:0.375rem 0.5rem;">
+                            <span>Sin tableros recientes</span>
                         </div>
                     </div>
                 </div>
-                
-                {# Botón crear tablero #}
+
                 <button class="btn-create-board" data-bs-toggle="modal" data-bs-target="#createBoardModal">
                     <i class="fas fa-plus"></i>
                     <span>Crear Tablero</span>
                 </button>
             </div>
         </aside>
-        
-        {# CONTENIDO PRINCIPAL #}
-            <main class="main-content">
-                {# Mostrar mensajes SOLO si NO estamos en login o registro #}
-                {% if messages and request.resolver_match.url_name != 'register' and request.resolver_match.url_name != 'login' %}
-                    <div class="messages-container">
-                        {% for message in messages %}
-                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                                {{ message }}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            </div>
-                        {% endfor %}
-                    </div>
-                {% endif %}
-                
-                {% block content %}
-                {% endblock %}
-            </main>
+        {% endif %}
+
+        <main class="main-content">
+            {% if messages and nav_active != 'register' and nav_active != 'login' %}
+            <div class="messages-container">
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% block content %}{% endblock %}
+        </main>
     </div>
-    
-    {# MODAL: CREAR TABLERO #}
+
+    {% if user.is_authenticated %}
     <div class="modal fade" id="createBoardModal" tabindex="-1">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Crear Nuevo Tablero</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <h5 class="modal-title"><i class="fas fa-plus-circle"></i> Crear Nuevo Tablero</h5>
+                    <button type="button" class="btn-close btn-close-modal" data-bs-dismiss="modal">
+                        <i class="fas fa-times"></i>
+                    </button>
                 </div>
                 <div class="modal-body">
                     <form id="createBoardForm">
                         {% csrf_token %}
-                        <div class="mb-3">
-                            <label for="boardName" class="form-label">Nombre del tablero</label>
-                            <input type="text" class="form-control" id="boardName" required>
+                        <div class="form-group-modern">
+                            <label for="boardName" class="form-label-modern">Nombre del tablero</label>
+                            <input type="text" class="form-control-modern" id="boardName" required minlength="3" placeholder="Mi proyecto...">
                         </div>
-                        <div class="mb-3">
-                            <label for="boardDescription" class="form-label">Descripción</label>
-                            <textarea class="form-control" id="boardDescription" rows="3"></textarea>
+                        <div class="form-group-modern">
+                            <label for="boardDescription" class="form-label-modern">Descripción</label>
+                            <textarea class="form-control-modern" id="boardDescription" rows="2" placeholder="Opcional"></textarea>
                         </div>
                     </form>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-primary" id="saveBoardBtn">Crear Tablero</button>
+                    <button type="button" class="btn btn-secondary btn-modern" data-bs-dismiss="modal">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                    <button type="button" class="btn btn-primary btn-modern" id="saveBoardBtn">
+                        <i class="fas fa-plus"></i> Crear Tablero
+                    </button>
                 </div>
             </div>
         </div>
     </div>
-    
-    {# Scripts #}
+    {% endif %}
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
-    {# SortableJS para Drag & Drop #}
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
-    
     {% load static %}
     <script src="{% static 'js/helpers.js' %}"></script>
+    <script src="{% static 'js/theme.js' %}"></script>
     <script src="{% static 'js/api.js' %}"></script>
     <script src="{% static 'js/websocket.js' %}"></script>
     <script src="{% static 'js/dashboard.js' %}"></script>
+    <script src="{% static 'js/search.js' %}"></script>
     <script src="{% static 'js/board.js' %}"></script>
     {% if user.is_authenticated %}
     <script src="{% static 'js/notifications.js' %}"></script>
+    <script src="{% static 'js/contact_requests.js' %}"></script>
     {% endif %}
-    
     {% block extra_js %}{% endblock %}
+
+    {% load static %}
+    <script src="{% static 'js/search_contacts.js' %}"></script>
 </body>
 </html>

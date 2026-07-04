@@ -7,41 +7,40 @@
 <div class="container py-4">
     <div class="row justify-content-center">
         <div class="col-md-8">
-            <div class="card shadow-sm border-0 rounded-4">
-                <div class="card-header bg-white border-0 pt-4 pb-0">
+            <div class="form-card">
+                <div class="form-card-header">
                     <div class="d-flex justify-content-between align-items-center">
-                        <h2 class="h4 mb-0">
-                            <i class="fas fa-edit text-primary me-2"></i>
-                            Editar Tarea
+                        <h2 class="form-card-title">
+                            <i class="fas fa-edit"></i> Editar Tarea
                         </h2>
-                        <a href="{% url 'board_detail' card.list.board.id %}" class="btn btn-sm btn-outline-secondary">
-                            <i class="fas fa-times"></i> Cancelar
+                        <a href="{% url 'board_detail' card.list.board.id %}" class="btn btn-sm btn-close-form">
+                            <i class="fas fa-times"></i>
                         </a>
                     </div>
                 </div>
-                <div class="card-body p-4">
+                <div class="form-card-body">
                     <form method="POST">
                         {% csrf_token %}
-                        <div class="mb-3">
-                            <label for="title" class="form-label fw-semibold">Título</label>
-                            <input type="text" name="title" id="title" class="form-control" value="{{ card.title }}" required>
+                        <div class="form-group-modern">
+                            <label for="title" class="form-label-modern">Título</label>
+                            <input type="text" name="title" id="title" class="form-control-modern" value="{{ card.title }}" required>
                         </div>
-                        <div class="mb-3">
-                            <label for="description" class="form-label fw-semibold">Descripción</label>
-                            <textarea name="description" id="description" class="form-control" rows="4">{{ card.description }}</textarea>
+                        <div class="form-group-modern">
+                            <label for="description" class="form-label-modern">Descripción</label>
+                            <textarea name="description" id="description" class="form-control-modern" rows="4">{{ card.description }}</textarea>
                         </div>
-                        <div class="mb-3">
-                            <label for="priority" class="form-label fw-semibold">Prioridad</label>
-                            <select name="priority" id="priority" class="form-select">
+                        <div class="form-group-modern">
+                            <label for="priority" class="form-label-modern">Prioridad</label>
+                            <select name="priority" id="priority" class="form-control-modern">
                                 <option value="low" {% if card.priority == 'low' %}selected{% endif %}>Baja</option>
                                 <option value="medium" {% if card.priority == 'medium' %}selected{% endif %}>Media</option>
                                 <option value="high" {% if card.priority == 'high' %}selected{% endif %}>Alta</option>
                                 <option value="urgent" {% if card.priority == 'urgent' %}selected{% endif %}>Urgente</option>
                             </select>
                         </div>
-                        <div class="mb-3">
-                            <label for="assigned_to" class="form-label fw-semibold">Asignar a</label>
-                            <select name="assigned_to" id="assigned_to" class="form-select">
+                        <div class="form-group-modern">
+                            <label for="assigned_to" class="form-label-modern">Asignar a</label>
+                            <select name="assigned_to" id="assigned_to" class="form-control-modern">
                                 <option value="">No asignar</option>
                                 {% for member in members %}
                                     <option value="{{ member.id }}" {% if card.assigned_to.id == member.id %}selected{% endif %}>
@@ -50,16 +49,36 @@
                                 {% endfor %}
                             </select>
                         </div>
-                        <div class="mb-3">
-                            <label for="due_date" class="form-label fw-semibold">Fecha límite</label>
-                            <input type="datetime-local" name="due_date" id="due_date" class="form-control" value="{{ card.due_date|date:'Y-m-d\TH:i' }}">
+                        <div class="form-group-modern">
+                            <label for="due_date" class="form-label-modern">Fecha límite</label>
+                            <input type="datetime-local" name="due_date" id="due_date" class="form-control-modern" value="{{ card.due_date|date:'Y-m-d\TH:i' }}">
                         </div>
-                        <div class="d-flex gap-2 mt-4">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save me-1"></i> Guardar Cambios
+                        {% if board_labels %}
+                        <div class="form-group-modern">
+                            <label class="form-label-modern"><i class="fas fa-tags"></i> Etiquetas</label>
+                            <div class="label-picker" id="cardLabelPicker" data-card-id="{{ card.id }}">
+                                {% for label in board_labels %}
+                                <button type="button"
+                                        class="label-picker-chip {% if label.id in card_label_ids %}active{% endif %}"
+                                        data-label-id="{{ label.id }}"
+                                        data-label-color="{{ label.color }}"
+                                        style="--label-color: {{ label.color }};"
+                                        {% if not board_permissions.manage_labels %}disabled{% endif %}>
+                                    {{ label.name }}
+                                </button>
+                                {% endfor %}
+                            </div>
+                            {% if not board_permissions.manage_labels %}
+                            <small class="form-card-warning">Solo lectura — no tienes permiso para modificar etiquetas.</small>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary btn-modern">
+                                <i class="fas fa-save"></i> Guardar Cambios
                             </button>
-                            <a href="{% url 'board_detail' card.list.board.id %}" class="btn btn-secondary">
-                                Cancelar
+                            <a href="{% url 'board_detail' card.list.board.id %}" class="btn btn-secondary btn-modern">
+                                <i class="fas fa-times"></i> Cancelar
                             </a>
                         </div>
                     </form>
@@ -67,49 +86,69 @@
             </div>
             
             <!-- Zona peligrosa: Eliminar tarea -->
-            <div class="card shadow-sm border-0 rounded-4 mt-4">
-                <div class="card-header bg-white border-0 pt-4 pb-0">
-                    <h3 class="h6 text-danger mb-0">
-                        <i class="fas fa-exclamation-triangle me-1"></i>
-                        Zona Peligrosa
+            {% if board_permissions.delete_cards %}
+            <div class="form-card form-card-danger">
+                <div class="form-card-header form-card-header-danger">
+                    <h3 class="form-card-title form-card-title-danger">
+                        <i class="fas fa-exclamation-triangle"></i> Zona Peligrosa
                     </h3>
                 </div>
-                <div class="card-body p-4">
-                    <p class="text-muted small mb-3">
+                <div class="form-card-body">
+                    <p class="form-card-warning">
                         Eliminar esta tarea es una acción irreversible.
                     </p>
-                    <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteCardModal">
-                        <i class="fas fa-trash-alt me-1"></i> Eliminar Tarea
+                    <button type="button" class="btn btn-danger btn-modern" data-bs-toggle="modal" data-bs-target="#deleteCardModal">
+                        <i class="fas fa-trash-alt"></i> Eliminar Tarea
                     </button>
                 </div>
             </div>
+            {% endif %}
         </div>
     </div>
 </div>
 
 <!-- Modal de confirmación de eliminación -->
 <div class="modal fade" id="deleteCardModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-danger text-white">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content modal-content-danger">
+            <div class="modal-header modal-header-danger">
                 <h5 class="modal-title">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    Confirmar Eliminación
+                    <i class="fas fa-exclamation-triangle"></i> Confirmar Eliminación
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close btn-close-modal" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
             <div class="modal-body">
                 <p>¿Estás seguro de que quieres eliminar la tarea <strong>{{ card.title }}</strong>?</p>
-                <p class="text-muted small mb-0">Esta acción no se puede deshacer.</p>
+                <p class="modal-warning">Esta acción no se puede deshacer.</p>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-secondary btn-modern" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> Cancelar
+                </button>
                 <form method="POST" action="{% url 'delete_card' card.id %}" style="display: inline;">
                     {% csrf_token %}
-                    <button type="submit" class="btn btn-danger">Sí, Eliminar</button>
+                    <button type="submit" class="btn btn-danger btn-modern">
+                        <i class="fas fa-trash-alt"></i> Sí, Eliminar
+                    </button>
                 </form>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/labels.js' %}"></script>
+<script>
+document.getElementById('cardLabelPicker')?.querySelectorAll('.label-picker-chip:not([disabled])').forEach(chip => {
+    chip.addEventListener('click', async () => {
+        const cardId = document.getElementById('cardLabelPicker').dataset.cardId;
+        const labelId = chip.dataset.labelId;
+        const result = await FlowTaskLabels.toggleCardLabel(cardId, labelId);
+        if (result.success) chip.classList.toggle('active', result.attached);
+    });
+});
+</script>
 {% endblock %}

@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+
+{% block title %}Calendario | FlowTask{% endblock %}
+
+{% block content %}
+<div class="page-content">
+    <div class="page-header">
+        <div>
+            <h1><i class="fas fa-calendar-alt"></i> Calendario</h1>
+            <p class="subtitle">Tareas con fecha de vencimiento</p>
+        </div>
+    </div>
+
+    <div class="calendar-layout">
+        <div class="calendar-grid">
+            <div class="calendar-nav">
+                <a href="?month={{ prev_month }}&year={{ prev_year }}" class="nav-btn"><i class="fas fa-chevron-left"></i></a>
+                <h2>{{ month_name }} {{ current_year }}</h2>
+                <a href="?month={{ next_month }}&year={{ next_year }}" class="nav-btn"><i class="fas fa-chevron-right"></i></a>
+            </div>
+            <div class="calendar-weekdays">
+                <span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span><span>Dom</span>
+            </div>
+            <div class="calendar-days">
+                {% for week in weeks_data %}
+                    {% for cell in week %}
+                    <div class="calendar-day {% if cell.day == 0 %}empty{% endif %} {% if cell.is_today %}today{% endif %}">
+                        {% if cell.day != 0 %}
+                        <div class="day-number">{{ cell.day }}</div>
+                        {% for card in cell.cards %}
+                        <a href="{% url 'board_detail' card.list.board.id %}" class="calendar-task priority-{{ card.priority }}" title="{{ card.title }}">
+                            {{ card.title|truncatechars:18 }}
+                        </a>
+                        {% endfor %}
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="calendar-sidebar">
+            <div class="panel">
+                <div class="panel-header">
+                    <h3><i class="fas fa-exclamation-triangle me-1" style="color:var(--accent-red);"></i> Vencidas</h3>
+                </div>
+                <div class="panel-body">
+                    {% for card in overdue_cards %}
+                    <div class="overdue-item">
+                        <span class="overdue-dot"></span>
+                        <div>
+                            <a href="{% url 'board_detail' card.list.board.id %}">{{ card.title }}</a>
+                            <div style="font-size:0.7rem;color:var(--text-muted);">{{ card.list.board.name }} · {{ card.due_date|date:"d/m/Y" }}</div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p style="font-size:0.8125rem;color:var(--text-muted);margin:0;">No hay tareas vencidas </p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

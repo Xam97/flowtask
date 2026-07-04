@@ -11,14 +11,14 @@ const FlowTaskWebSocket = (function() {
     const MAX_RECONNECT_ATTEMPTS = 5;
     const RECONNECT_DELAY = 3000;
     
-    // Callbacks para eventos
+    // Callbacks para eventos (cada evento puede tener varios listeners registrados)
     let eventHandlers = {
-        onCardMoved: null,
-        onNewComment: null,
-        onCardUpdated: null,
-        onCardCreated: null,
-        onCardDeleted: null,
-        onNotification: null
+        onCardMoved: [],
+        onNewComment: [],
+        onCardUpdated: [],
+        onCardCreated: [],
+        onCardDeleted: [],
+        onNotification: []
     };
     
     /**
@@ -143,37 +143,30 @@ const FlowTaskWebSocket = (function() {
                     break;
                     
                 case 'card_moved':
-                    if (eventHandlers.onCardMoved) {
-                        eventHandlers.onCardMoved(data.data);
-                    }
+                    eventHandlers.onCardMoved.forEach(cb => cb(data.data));
                     updateCardPositionInUI(data.data);
                     break;
                     
                 case 'new_comment':
-                    if (eventHandlers.onNewComment) {
-                        eventHandlers.onNewComment(data.data);
+                    if (eventHandlers.onNewComment.length) {
+                        eventHandlers.onNewComment.forEach(cb => cb(data.data));
+                    } else {
+                        addCommentToUI(data.data);
                     }
-                    addCommentToUI(data.data);
                     break;
                     
                 case 'card_updated':
-                    if (eventHandlers.onCardUpdated) {
-                        eventHandlers.onCardUpdated(data.data);
-                    }
+                    eventHandlers.onCardUpdated.forEach(cb => cb(data.data));
                     updateCardInUI(data.data);
                     break;
                     
                 case 'card_created':
-                    if (eventHandlers.onCardCreated) {
-                        eventHandlers.onCardCreated(data.data);
-                    }
+                    eventHandlers.onCardCreated.forEach(cb => cb(data.data));
                     addCardToUI(data.data);
                     break;
                     
                 case 'card_deleted':
-                    if (eventHandlers.onCardDeleted) {
-                        eventHandlers.onCardDeleted(data.data);
-                    }
+                    eventHandlers.onCardDeleted.forEach(cb => cb(data.data));
                     removeCardFromUI(data.data.card_id);
                     break;
                     
@@ -190,20 +183,19 @@ const FlowTaskWebSocket = (function() {
     }
     
     /**
-     * Maneja mensajes de notificaciones
+     * Maneja mensajes de notificaciones.
+     * El NotificationConsumer (boards/consumers.py) envía un sobre:
+     * {type: 'notification', notification: {...payload...}}
      */
     function onNotificationMessage(event) {
         try {
-            const data = JSON.parse(event.data);
-            console.log('Notificación recibida:', data);
-            
-            if (data.type === 'notification') {
-                FlowTaskHelpers.showToast(data.data.message, 'info');
-                updateNotificationBadge();
-                
-                if (eventHandlers.onNotification) {
-                    eventHandlers.onNotification(data.data);
-                }
+            const envelope = JSON.parse(event.data);
+            console.log('Notificación recibida:', envelope);
+
+            if (envelope && envelope.type === 'notification' && envelope.notification) {
+                const data = envelope.notification;
+                FlowTaskHelpers.showToast(data.message, 'info');
+                eventHandlers.onNotification.forEach(cb => cb(data));
             }
         } catch (error) {
             console.error('Error al parsear notificación:', error);
@@ -298,12 +290,14 @@ const FlowTaskWebSocket = (function() {
     }
     
     /**
-     * Registra handlers para eventos
+     * Registra handlers para eventos. Pueden registrarse varios callbacks
+     * para el mismo evento (ej: notifications.js y contact_requests.js
+     * ambos escuchan 'onNotification').
      */
     function on(event, callback) {
         const key = event.startsWith('on') ? event : `on${event.charAt(0).toUpperCase()}${event.slice(1)}`;
         if (eventHandlers.hasOwnProperty(key)) {
-            eventHandlers[key] = callback;
+            eventHandlers[key].push(callback);
         }
     }
     

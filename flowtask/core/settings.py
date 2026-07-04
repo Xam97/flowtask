@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     'activity',     # Registro de actividad reciente
     'websockets',   # Comunicación en tiempo real
     'comments',     # Comentarios en tarjetas
+    'contacts',     # Gestión de contactos y relaciones
 ]
 
 # ========== MIDDLEWARE ==========
@@ -64,6 +65,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'core.context_processors.navigation',
             ],
         },
     },

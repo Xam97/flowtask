@@ -6,6 +6,7 @@ from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.contrib.auth.models import User
 from .models import Board, List, Card
+from .permissions import user_has_permission
 
 
 class BoardConsumer(AsyncJsonWebsocketConsumer):
@@ -52,6 +53,11 @@ class BoardConsumer(AsyncJsonWebsocketConsumer):
         try:
             card = await self.get_card(card_id)
             if card:
+                can_move = await self.check_move_permission(user.id, card)
+                if not can_move:
+                    await self.send_json({'type': 'error', 'message': 'Sin permiso para mover tarjetas'})
+                    return
+
                 await self.update_card_position(card, new_list_id, new_position)
                 
                 await self.channel_layer.group_send(
@@ -85,6 +91,15 @@ class BoardConsumer(AsyncJsonWebsocketConsumer):
             board = Board.objects.get(id=board_id, is_archived=False)
             return board.owner_id == user_id or board.members.filter(id=user_id).exists()
         except Board.DoesNotExist:
+            return False
+    
+    @database_sync_to_async
+    def check_move_permission(self, user_id, card):
+        try:
+            user = User.objects.get(id=user_id)
+            board = card.list.board
+            return user_has_permission(user, board, 'move_card')
+        except User.DoesNotExist:
             return False
     
     @database_sync_to_async
@@ -126,8 +141,8 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
             await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
     
     async def send_notification(self, event):
-        """Envía una notificación al usuario"""
+        """Recibe el evento del group_send y lo manda limpio al JS"""
         await self.send_json({
-            'type': 'notification',
-            'data': event['data']
+            'type': 'notification',             
+            'notification': event['notification'] 
         })

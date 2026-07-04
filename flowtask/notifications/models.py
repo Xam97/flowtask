@@ -3,24 +3,27 @@
 from django.db import models
 from django.contrib.auth.models import User
 
-
 class Notification(models.Model):
-    """Notificaciones para usuarios"""
     
+    # Sincronizado exactamente con utils.py y notifications.js
     NOTIFICATION_TYPES = [
-        ('card_moved', 'Tarjeta movida'),
         ('card_assigned', 'Tarea asignada'),
         ('new_comment', 'Nuevo comentario'),
+        ('card_moved', 'Tarjeta movida'),
         ('member_added', 'Miembro agregado'),
         ('card_deleted', 'Tarjeta eliminada'),
+        ('contact_request', 'Solicitud de contacto'),
+        ('contact_accepted', 'Solicitud de contacto aceptada'),
     ]
     
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications_user')
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='notifications_sent')
     type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES)
-    title = models.CharField(max_length=200)
+    title = models.CharField(max_length=200) # 💡 Campo obligatorio resuelto
     message = models.TextField()
     board_id = models.IntegerField(null=True, blank=True)
     card_id = models.IntegerField(null=True, blank=True)
+    contact_request_id = models.IntegerField(null=True, blank=True)
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     
@@ -29,6 +32,8 @@ class Notification(models.Model):
     
     def __str__(self):
         return f"{self.user.username}: {self.title}"
+
+
 
 
 class Activity(models.Model):

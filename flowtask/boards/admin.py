@@ -13,7 +13,6 @@ class BoardAdmin(admin.ModelAdmin):
     list_filter = ['is_archived', 'created_at', 'owner']
     search_fields = ['name', 'description', 'owner__username']
     readonly_fields = ['created_at', 'updated_at']
-   
     
     def get_member_count(self, obj):
         return obj.members.count()
