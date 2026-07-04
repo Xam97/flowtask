@@ -2,6 +2,7 @@ from django.urls import path
 from . import views
 from . import search_views
 from rest_framework.routers import DefaultRouter
+from . import search_views
 
 router = DefaultRouter()
 #router.register(r'boards', views.BoardViewSet)
@@ -17,6 +18,7 @@ urlpatterns = [
     path('<int:pk>/delete/', views.delete_board, name='delete_board'),
     path('<int:pk>/delete-permanent/', views.delete_board_permanent, name='delete_board_permanent'),
     path('api/user-owned-boards/', views.user_owned_boards_api, name='user_owned_boards_api'),
+    path('api/board-summary/<int:board_id>/', views.board_summary_api, name='board_summary_api'),
     
     # Listas
     path('<int:board_id>/lists/create/', views.create_list, name='create_list'),
@@ -32,12 +34,14 @@ urlpatterns = [
     
     # Miembros
     path('<int:board_id>/members/add/', views.add_member, name='add_member'),
+    path('<int:board_id>/members/search-invite/', views.search_invite_candidates, name='search_invite_candidates'),
     path('<int:board_id>/members/', views.board_members_api, name='board_members_api'),
     path('members/<int:membership_id>/remove/', views.remove_member, name='remove_member'),
     path('members/<int:membership_id>/permissions/', views.update_member_permissions, name='update_member_permissions'),
 
     path('search/', search_views.search_view, name='search'),
     path('search/api/', search_views.search_api, name='search_api'),
+    path('contacts/', search_views.contacts_page, name='contacts_page'),
     path('calendar/', search_views.calendar_view, name='calendar'),
     path('panel/', search_views.panel_view, name='panel'),
     path('labels/', search_views.labels_view, name='labels'),

@@ -141,8 +141,8 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
             await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
     
     async def send_notification(self, event):
-        """Envía una notificación al usuario"""
+        """Recibe el evento del group_send y lo manda limpio al JS"""
         await self.send_json({
-            'type': 'notification',
-            'data': event['data']
+            'type': 'notification',             
+            'notification': event['notification'] 
         })

@@ -25,7 +25,7 @@ Sistema moderno de gestión de tareas estilo Kanban desarrollado con Django y fu
 
 ## Descripción General
 
-FlowTask es una aplicación web para la gestión colaborativa de tareas y proyectos basada en la metodología Kanban, con una experiencia de uso similar a Trello. Permite organizar el trabajo mediante tableros, listas y tarjetas, facilitando la planificación, el seguimiento de actividades y la colaboración en tiempo real a través de notificaciones y WebSockets.
+FlowTask es una aplicación web para la gestión colaborativa de tareas y proyectos basada en la metodología Kanban, con una experiencia de uso similar a Trello. Permite organizar el trabajo mediante tableros, listas y tarjetas, facilitando la planificación, el seguimiento de actividades y la colaboración en tiempo real a través de notificaciones y WebSockets. Además, cuenta con un sistema de contactos que permite enviar, aceptar y rechazar solicitudes entre usuarios para luego invitarlos fácilmente a los tableros.
 
 ## Objetivo del Sistema
 
@@ -44,6 +44,7 @@ El objetivo principal de FlowTask es proporcionar una solución eficiente y acce
 - **Colaboración en Tiempo Real**: Actualizaciones instantáneas mediante WebSockets (Django Channels)
 - **Sistema de Notificaciones**: Alertas en tiempo real para asignaciones, comentarios y cambios
 - **Gestión de Miembros**: Sistema de roles (Administrador, Miembro, Espectador) con permisos granulares
+- **Sistema de Contactos**: Envío, aceptación y rechazo de solicitudes de contacto entre usuarios, con listado de "Mis Contactos" para invitar rápidamente a los tableros
 - **Etiquetas y Prioridades**: Clasificación visual de tareas con colores y niveles de urgencia
 - **Calendario Integrado**: Visualización de tareas con fechas de vencimiento
 - **Panel de Métricas**: Estadísticas y análisis de progreso del proyecto
@@ -91,6 +92,7 @@ flowtask/
 ├── activity/       # Historial y timeline de actividades
 ├── websockets/     # Consumidores y rutas para comunicación en tiempo real
 ├── comments/       # Sistema de comentarios en tarjetas
+├── contacts/       # Solicitudes de contacto y relaciones entre usuarios
 ├── static/         # Archivos estáticos (CSS, JS)
 └── templates/      # Plantillas HTML
 ```
@@ -107,7 +109,7 @@ flowtask/
 
 Antes de instalar FlowTask, asegúrese de tener instalado en su sistema:
 
-- **Python 3.10 o superior (probado con Python 3.13)**: [Descargar Python](https://www.python.org/downloads/)
+- **Python 3.12 o superior (probado con Python 3.13)**: [Descargar Python](https://www.python.org/downloads/)
 - **pip**: Gestor de paquetes de Python (incluido con Python)
 - **Git**: Para clonar el repositorio (opcional)
 - **Editor de código**: VS Code, PyCharm, o similar (recomendado)
@@ -410,6 +412,14 @@ flowtask/
 │   │   ├── views.py              # Vistas de comentarios
 │   │   └── migrations/           # Migraciones
 │   │
+│   ├── contacts/                 # Solicitudes de contacto entre usuarios
+│   │   ├── __init__.py
+│   │   ├── models.py             # Modelo: ContactRequest (pending/accepted/rejected)
+│   │   ├── views.py              # ViewSet de contactos (API)
+│   │   ├── serializers.py        # Serializadores de solicitudes de contacto
+│   │   ├── urls.py               # Rutas de la API de contactos
+│   │   └── migrations/           # Migraciones
+│   │
 │   ├── static/                   # Archivos estáticos
 │   │   ├── css/
 │   │   │   ├── layout.css        # Estilos generales
@@ -483,6 +493,14 @@ flowtask/
 - Indicador de notificaciones no leídas
 - Opción para marcar todas como leídas
 - Eliminación de notificaciones leídas
+
+### Gestión de Contactos
+- Envío de solicitudes de contacto a otros usuarios
+- Aceptación o rechazo de solicitudes recibidas
+- Listado de "Mis Contactos" con las relaciones aceptadas
+- Prevención de solicitudes duplicadas entre el mismo par de usuarios (`unique_together`)
+- Entrega en tiempo real de solicitudes y respuestas mediante WebSockets
+- Base para la invitación rápida de contactos a los tableros
 
 ### Calendario
 - Visualización mensual de tareas
@@ -647,6 +665,10 @@ python manage.py migrate
 ```
 
 **Advertencia**: Esto eliminará todos los datos. Úsalo en desarrollo.
+
+### Nota: Channel Layer en memoria (solo desarrollo)
+
+El proyecto usa `channels.layers.InMemoryChannelLayer` como `CHANNEL_LAYERS` en `settings.py`. Esta configuración funciona bien para desarrollo y para esta entrega académica, pero solo soporta un único proceso de servidor: no sirve para producción ni para correr múltiples instancias/workers, ya que cada proceso tendría su propia memoria y los mensajes de WebSocket no se compartirían entre ellos. Para producción se recomienda `channels_redis` con un servidor Redis como backend del channel layer.
 
 ### Problema: WebSockets no funcionan
 

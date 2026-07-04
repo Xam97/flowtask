@@ -23,6 +23,9 @@ urlpatterns = [
     
     # Actividad reciente
     path('activity/', include('activity.urls')),
+
+    # Contactos y relaciones
+    path('api/contacts/', include('contacts.urls')),
 ]
 
 # Servir archivos media en desarrollo

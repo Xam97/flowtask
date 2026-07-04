@@ -104,18 +104,21 @@
 
     function renderCommentHtml(comment) {
         const currentUserId = document.body.dataset.userId;
+        const cId = comment.comment_id || comment.id; 
         const canDelete = comment.is_own || comment.user_id == currentUserId;
+        const finalContent = comment.comment || comment.content || '';
+        
         return `
-            <div class="comment-item" data-comment-id="${comment.id || comment.comment_id}">
+            <div class="comment-item" data-comment-id="${cId}">
                 <div class="comment-header">
-                    <div class="comment-avatar">${comment.user.charAt(0).toUpperCase()}</div>
+                    <div class="comment-avatar">${comment.user ? comment.user.charAt(0).toUpperCase() : 'U'}</div>
                     <div>
-                        <strong>${FlowTaskHelpers.escapeHtml(comment.user)}</strong>
+                        <strong>${FlowTaskHelpers.escapeHtml(comment.user || 'Usuario')}</strong>
                         <small>${comment.created_at}</small>
                     </div>
-                    ${canDelete ? `<button class="btn btn-sm btn-link text-danger delete-comment-btn" data-id="${comment.id || comment.comment_id}"><i class="fas fa-trash-alt"></i></button>` : ''}
+                    ${canDelete ? `<button class="btn btn-sm btn-link text-danger delete-comment-btn" data-id="${cId}"><i class="fas fa-trash-alt"></i></button>` : ''}
                 </div>
-                <p>${FlowTaskHelpers.escapeHtml(comment.content || comment.comment)}</p>
+                <p>${FlowTaskHelpers.escapeHtml(finalContent)}</p>
             </div>
         `;
     }
@@ -175,9 +178,9 @@
 
                 if (data.success) {
                     input.value = '';
-                    appendComment(data.comment);
-                    updateCommentCount(1);
-                    updateCardCommentBadge(currentCardId, 1);
+                    //appendComment(data.comment);
+                   // updateCommentCount(1);
+                   // updateCardCommentBadge(currentCardId, 1);
                 } else {
                     FlowTaskHelpers.showToast(data.error || 'Error', 'error');
                 }
@@ -225,21 +228,19 @@
     function initWebSocketHandlers() {
         FlowTaskWebSocket.on('onNewComment', (data) => {
             const container = document.querySelector(`.comments-container[data-card-id="${data.card_id}"]`);
-            const existing = container?.querySelector(`[data-comment-id="${data.comment_id}"]`);
+            if (!container) return;
 
-            // Don't add if it's from the current user (already added locally)
-            if (data.user_id == document.body.dataset.userId) {
-                return;
-            }
+            const wsId = data.comment_id || data.id;
+            const existing = container.querySelector(`[data-comment-id="${wsId}"]`);
 
-            // Only add comment if it doesn't already exist and we're viewing that card
-            if (container && !existing && data.card_id == currentCardId) {
+            if (existing) return;
+
+            if (data.card_id == currentCardId) {
                 container.insertAdjacentHTML('beforeend', renderCommentHtml(data));
                 bindDeleteButtons();
                 updateCommentCount(1);
             }
 
-            // Always update the badge on the card
             updateCardCommentBadge(data.card_id, 1);
         });
     }

@@ -79,7 +79,7 @@
         <div class="list-header">
             <div>
                 <span class="list-title">{{ list.name }}</span>
-                <span class="list-badge ms-2">{{ list.cards.count }}</span>
+                <span class="list-badge ms-2" id="list-badge-{{ list.id }}">{{ list.cards.count }}</span>
             </div>
             {% if board_permissions.edit_lists or board_permissions.delete_lists %}
             <div class="list-actions">
@@ -152,7 +152,7 @@
                 </div>
             </div>
             {% empty %}
-            <div class="empty-cards">No hay tareas</div>
+            <div class="empty-cards empty-placeholder-{{ list.id }}">No hay tareas</div>
             {% endfor %}
         </div>
         
@@ -167,7 +167,7 @@
     <div class="modal fade" id="addCardModal{{ list.id }}" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
-                <form method="POST" action="{% url 'create_card' list.id %}">
+                <form method="POST" action="{% url 'create_card' list.id %}" class="js-create-card-form" data-form-list-id="{{ list.id }}">
                     {% csrf_token %}
                     <div class="modal-header">
                         <h5 class="modal-title">Nueva Tarea en "{{ list.name }}"</h5>
@@ -252,7 +252,11 @@
                 </div>
                 <div class="modal-body">
                     <label class="form-label">Nombre de usuario</label>
-                    <input type="text" name="username" class="form-control" placeholder="username" required>
+                    <div class="invite-autocomplete-wrapper" style="position: relative;">
+                        <input type="text" id="inviteUsernameInput" class="form-control" placeholder="Escribí para buscar..." autocomplete="off" required>
+                        <input type="hidden" name="username" id="inviteUsernameHidden">
+                        <div id="inviteSuggestions" class="invite-suggestions"></div>
+                    </div>
                     <label class="form-label mt-2">Rol</label>
                     <select name="role" class="form-select" id="inviteRoleSelect">
                         <option value="member">Miembro</option>
@@ -282,7 +286,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">Invitar</button>
+                    <button type="submit" class="btn btn-primary" id="inviteSubmitBtn" disabled>Invitar</button>
                 </div>
             </form>
         </div>

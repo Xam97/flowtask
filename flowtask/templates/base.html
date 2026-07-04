@@ -44,13 +44,12 @@
 
             <div class="collapse navbar-collapse" id="navbarNav">
                 <div class="search-wrapper">
-                    <form class="search-form" id="globalSearchForm" action="{% url 'search' %}" method="GET" role="search">
+                    <form id="globalSearchForm" class="search-form" action="/boards/search/" method="get">
                         <i class="fas fa-search search-icon"></i>
-                        <input class="form-control" type="search" name="q" id="globalSearchInput"
-                               placeholder="Buscar tableros, tareas..." aria-label="Buscar" autocomplete="off">
-                        <button class="btn-search-submit" type="submit"><i class="fas fa-arrow-right"></i></button>
+                        <input type="text" id="globalSearchInput" name="q" class="form-control" placeholder="Buscar..." autocomplete="off">
+                        <button type="submit" class="btn-search-submit"><i class="fas fa-arrow-right"></i></button>
                     </form>
-                    <div class="search-dropdown" id="searchDropdown"></div>
+                    <div id="searchDropdown" class="search-dropdown"></div>
                 </div>
 
                 <ul class="navbar-nav ms-auto navbar-actions">
@@ -59,6 +58,23 @@
                             <i class="fas fa-moon"></i>
                             <i class="fas fa-sun"></i>
                         </button>
+                    </li>
+                    <li class="nav-item contact-requests-wrapper notification-wrapper">
+                        <button class="nav-action-btn notification-icon" id="contactRequestsToggle" title="Solicitudes de contacto">
+                            <i class="fas fa-user-clock"></i>
+                            <span class="badge" id="contactRequestsBadge" style="display:none;">0</span>
+                        </button>
+                        <div class="notification-panel" id="contactRequestsPanel">
+                            <div class="notification-panel-header">
+                                <h6>Solicitudes de contacto</h6>
+                                <a href="{% url 'contacts_page' %}" class="btn btn-sm btn-notification-action">
+                                    <i class="fas fa-address-book"></i> Mis contactos
+                                </a>
+                            </div>
+                            <ul class="notification-list" id="contactRequestsList">
+                                <li class="notification-empty">Cargando...</li>
+                            </ul>
+                        </div>
                     </li>
                     <li class="nav-item notification-wrapper">
                         <button class="nav-action-btn notification-icon" id="notificationToggle" title="Notificaciones">
@@ -141,6 +157,10 @@
                     <a href="{% url 'activity' %}" class="nav-item {% if nav_active == 'activity' %}active{% endif %}">
                         <i class="nav-icon-activity fas fa-stream"></i>
                         <span>Actividad</span>
+                    </a>
+                    <a href="{% url 'contacts_page' %}" class="nav-item {% if nav_active == 'contacts_page' %}active{% endif %}">
+                        <i class="nav-icon-contacts fas fa-address-book"></i>
+                        <span>Contactos</span>
                     </a>
                     <a href="{% url 'panel' %}" class="nav-item {% if nav_active == 'panel' %}active{% endif %}">
                         <i class="nav-icon-labels fas fa-chart-line"></i>
@@ -229,7 +249,11 @@
     <script src="{% static 'js/board.js' %}"></script>
     {% if user.is_authenticated %}
     <script src="{% static 'js/notifications.js' %}"></script>
+    <script src="{% static 'js/contact_requests.js' %}"></script>
     {% endif %}
     {% block extra_js %}{% endblock %}
+
+    {% load static %}
+    <script src="{% static 'js/search_contacts.js' %}"></script>
 </body>
 </html>

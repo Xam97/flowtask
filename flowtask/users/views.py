@@ -114,7 +114,6 @@ def dashboard_view(request):
 
     board_ids = list(get_user_boards(request.user).values_list('id', flat=True))
     now = timezone.now()
-
     stats = {
         'total_boards': len(board_ids),
         'pending_tasks': Card.objects.filter(list__board_id__in=board_ids, is_completed=False).count(),

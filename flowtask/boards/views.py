@@ -28,6 +28,11 @@ from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from .serializers import UserRegistrationSerializer
 
+# IMPORTACIÓN DE LA UTILERÍA DE NOTIFICACIONES
+from notifications.utils import crear_notificacion
+
+from django.db.models import Q
+
 
 # ========== VISTAS DE TABLEROS ==========
 
@@ -36,10 +41,7 @@ def board_list(request):
     """
     Lista todos los tableros del usuario (propios + colaboraciones)
     """
-    # Boards donde el usuario es propietario
     owned_boards = request.user.owned_boards.filter(is_archived=False)
-    
-    # Boards donde el usuario es miembro PERO NO es propietario
     member_boards = request.user.boards.filter(is_archived=False).exclude(owner=request.user)
     
     context = {
@@ -62,6 +64,32 @@ def user_owned_boards_api(request):
 
 
 @login_required
+@require_http_methods(["GET"])
+def board_summary_api(request, board_id):
+    """
+    Datos mínimos de un tablero para insertar su card en vivo en el
+    dashboard (usado cuando a alguien lo agregan como miembro por WebSocket,
+    sin tener que recargar la página).
+    """
+    board = get_object_or_404(Board, pk=board_id, is_archived=False)
+
+    if not user_can_access_board(request.user, board):
+        return JsonResponse({'success': False, 'error': 'Sin acceso'}, status=403)
+
+    return JsonResponse({
+        'success': True,
+        'board': {
+            'id': board.id,
+            'name': board.name,
+            'description': board.description or '',
+            'lists_count': board.lists.count(),
+            'cards_count': board.get_card_count(),
+            'is_owner': board.owner_id == request.user.id,
+        }
+    })
+
+
+@login_required
 def board_detail(request, pk):
     """
     Vista detallada de un tablero (vista Kanban)
@@ -79,7 +107,6 @@ def board_detail(request, pk):
         'cards__labels',
     ).order_by('position')
     
-    # Obtener miembros (evitando duplicados)
     members = list(board.members.all())
     if board.owner not in members:
         members.append(board.owner)
@@ -125,7 +152,6 @@ def create_board(request):
         owner=request.user
     )
     
-    # Crear listas por defecto
     default_lists = ['Pendiente', 'En proceso', 'Terminado']
     for position, list_name in enumerate(default_lists):
         List.objects.create(
@@ -152,7 +178,6 @@ def create_board(request):
             }
         })
     
-    # Para peticiones normales (formulario tradicional)
     messages.success(request, f'Tablero "{name}" creado exitosamente')
     return redirect('board_detail', pk=board.id)
 
@@ -255,8 +280,11 @@ def delete_list(request, list_id):
 @require_http_methods(["POST"])
 def create_card(request, list_id):
     """
-    Crea una nueva tarjeta dentro de una lista
+    Crea una nueva tarjeta dentro de una lista y la transmite en tiempo real
     """
+    from channels.layers import get_channel_layer
+    from asgiref.sync import async_to_sync
+    
     list_obj = get_object_or_404(List, pk=list_id)
     board = list_obj.board
     
@@ -268,6 +296,7 @@ def create_card(request, list_id):
     
     title = request.POST.get('title')
     description = request.POST.get('description', '')
+    priority = request.POST.get('priority', 'medium')
     assigned_to_id = request.POST.get('assigned_to')
     due_date = request.POST.get('due_date')
     
@@ -279,9 +308,11 @@ def create_card(request, list_id):
     
     max_position = list_obj.cards.aggregate(models.Max('position'))['position__max'] or 0
     
+    # Creación del registro incluyendo la prioridad
     card = Card.objects.create(
         title=title,
         description=description,
+        priority=priority,  # GUARDADO: Se persiste en la base de datos
         list=list_obj,
         created_by=request.user,
         position=max_position + 10,
@@ -293,15 +324,42 @@ def create_card(request, list_id):
             assigned_user = User.objects.get(id=assigned_to_id)
             card.assigned_to = assigned_user
             card.save()
-            notify_task_assigned(assigned_user, card, request.user)
+            
+            # NOTIFICACIÓN PERSONAL: Alerta en la campana de notificaciones del destinatario
+            crear_notificacion(
+                recipient=assigned_user,
+                sender=request.user,
+                notification_type='task_assigned',
+                message=f"{request.user.username} te asignó la tarea '{card.title}' en el tablero '{board.name}'",
+                board_id=board.id,
+                card_id=card.id
+            )
         except User.DoesNotExist:
             pass
 
-    log_activity(
-        request.user, board.id, 'create_card',
-        f'Creó la tarea "{title}" en "{list_obj.name}"',
-        card_id=card.id,
-    )
+    log_activity(request.user, board.id, 'create_card', f'Creó la tarea "{title}"', card_id=card.id)
+
+    # TRANSMISIÓN EN VIVO: Envía la tarjeta al WebSocket del Tablero para pintarla en el Kanban
+    try:
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f'board_{board.id}',  # Grupo del canal del tablero específico
+            {
+                'type': 'card_created_live',  # Invoca este método en tu BoardConsumer
+                'data': {
+                    'card_id': card.id,
+                    'title': card.title,
+                    'description': card.description,
+                    'priority': card.priority,  # TRANSMITIDO: Crítico para que dragdrop.js pinte las clases CSS de prioridad
+                    'list_id': list_obj.id,
+                    'created_by': card.created_by.username,
+                    'assigned_to': card.assigned_to.username if card.assigned_to else None,
+                    'position': float(card.position)
+                }
+            }
+        )
+    except Exception as e:
+        print(f"Error transmitiendo creación de tarjeta por WebSocket: {e}")
     
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return JsonResponse({
@@ -310,6 +368,7 @@ def create_card(request, list_id):
                 'id': card.id,
                 'title': card.title,
                 'description': card.description,
+                'priority': card.priority,
                 'created_by': card.created_by.username,
                 'assigned_to': card.assigned_to.username if card.assigned_to else None,
                 'position': float(card.position)
@@ -319,12 +378,11 @@ def create_card(request, list_id):
     messages.success(request, f'Tarea "{title}" creada')
     return redirect('board_detail', pk=board.id)
 
-
 @login_required
 @require_http_methods(["POST"])
 def update_card_position(request):
     """
-    Actualiza la posición de una tarjeta (para Drag & Drop)
+    Actualiza la posición de una tarjeta (para Drag & Drop) e inyecta alertas en cambios de lista
     """
     import json
     data = json.loads(request.body)
@@ -353,12 +411,16 @@ def update_card_position(request):
         card.position = float(new_position)
 
     card.save()
-
-    if moved:
-        log_activity(
-            request.user, board_id, 'move_card',
-            f'Movió "{card.title}" de "{old_list_name}" a "{card.list.name}"',
-            card_id=card.id,
+    
+    # NOTIFICACIÓN: Tarea movida (notificar al asignado si no fue él quien la movió)
+    if cambio_de_lista and card.assigned_to and card.assigned_to != request.user:
+        crear_notificacion(
+            recipient=card.assigned_to,
+            sender=request.user,
+            notification_type='task_moved',
+            message=f"{request.user.username} movió tu tarea '{card.title}' a la columna '{card.list.name}'",
+            board_id=board.id,
+            card_id=card.id
         )
         notify_card_moved(board, card, request.user, old_list_name)
 
@@ -394,10 +456,55 @@ def delete_card(request, card_id):
 # ========== VISTAS DE MIEMBROS ==========
 
 @login_required
+@require_http_methods(["GET"])
+def search_invite_candidates(request, board_id):
+    """
+    Autocompletado de usuarios para el modal de "Invitar Miembro".
+    Devuelve usuarios cuyo username/nombre coincide con la búsqueda,
+    excluyendo al dueño del tablero, a quienes ya son miembros y al
+    propio usuario que busca.
+    """
+    board = get_object_or_404(Board, pk=board_id)
+
+    can_manage = user_has_permission(request.user, board, 'manage_members')
+    can_invite = user_has_permission(request.user, board, 'invite_members')
+    if not can_manage and not can_invite:
+        return JsonResponse({'results': []}, status=403)
+
+    query = request.GET.get('q', '').strip()
+    if len(query) < 2:
+        return JsonResponse({'results': []})
+
+    excluded_ids = set(
+        Membership.objects.filter(board=board).values_list('user_id', flat=True)
+    )
+    excluded_ids.add(board.owner_id)
+    excluded_ids.add(request.user.id)
+
+    candidates = User.objects.filter(
+        Q(username__icontains=query) |
+        Q(first_name__icontains=query) |
+        Q(last_name__icontains=query)
+    ).exclude(id__in=excluded_ids)[:8]
+
+    return JsonResponse({
+        'results': [
+            {
+                'id': u.id,
+                'username': u.username,
+                'first_name': u.first_name,
+                'last_name': u.last_name,
+            }
+            for u in candidates
+        ]
+    })
+
+
+@login_required
 @require_http_methods(["POST"])
 def add_member(request, board_id):
     """
-    Agrega un miembro al tablero
+    Agrega un miembro al tablero y le dispara la alerta en tiempo real
     """
     board = get_object_or_404(Board, pk=board_id)
     
@@ -626,10 +733,11 @@ def edit_list(request, list_id):
 @require_http_methods(["GET", "POST"])
 def edit_card(request, card_id):
     """
-    Editar una tarjeta existente
+    Editar una tarjeta existente controlando cambios en la asignación
     """
     card = get_object_or_404(Card, pk=card_id)
     board = card.list.board
+    old_assigned_to = card.assigned_to  # Guardamos la asignación vieja para comparar
     
     if not user_can_access_board(request.user, board):
         messages.error(request, 'Sin permiso')
@@ -649,19 +757,24 @@ def edit_card(request, card_id):
         old_assigned_id = card.assigned_to_id
         form = CardForm(request.POST, instance=card)
         if form.is_valid():
-            form.save()
-            log_activity(
-                request.user, board.id, 'edit_card',
-                f'Editó la tarea "{card.title}"',
-                card_id=card.id,
-            )
-            if card.assigned_to_id and card.assigned_to_id != old_assigned_id:
-                notify_task_assigned(card.assigned_to, card, request.user)
+            updated_card = form.save()
+            log_activity(request.user, board.id, 'edit_card', f'Editó la tarea "{card.title}"', card_id=card.id)            
+            
+            # NOTIFICACIÓN: Si cambió el usuario asignado, notificar al nuevo
+            if updated_card.assigned_to and updated_card.assigned_to != old_assigned_to:
+                crear_notificacion(
+                    recipient=updated_card.assigned_to,
+                    sender=request.user,
+                    notification_type='task_assigned',
+                    message=f"{request.user.username} te asignó la tarea '{updated_card.title}' en '{board.name}'",
+                    board_id=board.id,
+                    card_id=updated_card.id
+                )
+                
             messages.success(request, f'Tarea "{card.title}" actualizada')
             return redirect('board_detail', pk=board.id)
     else:
         form = CardForm(instance=card)
-        # Personalizar el select de assigned_to con los miembros
         form.fields['assigned_to'].choices = [('', 'No asignar')] + [(u.id, u.username) for u in members]
     
     return render(request, 'boards/edit_card.html', {
@@ -675,7 +788,7 @@ def edit_card(request, card_id):
     })
 
 
-# ========== ACTUALIZAR POSICIÓN (AJAX) ==========
+# ========== ACTUALIZAR POSICIÓN DE LISTA (AJAX) ==========
 
 @login_required
 @require_http_methods(["POST"])
@@ -728,3 +841,70 @@ class RegisterView(generics.CreateAPIView):
         return Response({
             'errors': serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
+
+
+# ========== VISTA DE BÚSQUEDA GLOBAL (PÁGINA COMPLETA BLINDADA) ==========
+
+@login_required
+def search(request):
+    """
+    Procesa la búsqueda global completa y renderiza los resultados 
+    de tableros, tareas y usuarios en la interfaz principal.
+    """
+    query = request.GET.get('q', '').strip()
+    boards = []
+    cards = []
+    users_list = []
+
+    if len(query) >= 2:
+        # 1. Búsqueda de Tableros (asegurando distinct para evitar duplicados por ManyToMany)
+        boards = Board.objects.filter(
+            Q(name__icontains=query) & 
+            (Q(owner=request.user) | Q(members=request.user)) &
+            Q(is_archived=False)
+        ).distinct()
+
+        # 2. Búsqueda de Tarjetas (Tareas)
+        cards = Card.objects.filter(
+            Q(title__icontains=query) & 
+            (Q(list__board__owner=request.user) | Q(list__board__members=request.user)) &
+            Q(list__board__is_archived=False)
+        ).distinct()
+
+        # 3. BÚSQUEDA DE USUARIOS 
+        # Forzamos la búsqueda limpia en el modelo User nativo de Django
+        raw_users = User.objects.filter(
+            (Q(username__icontains=query) | 
+             Q(first_name__icontains=query) | 
+             Q(last_name__icontains=query) | 
+             Q(email__icontains=query)) &
+            ~Q(id=request.user.id) # Excluimos al usuario logueado
+        )[:10]
+
+        for u in raw_users:
+            # Buscamos si existe alguna solicitud pendiente o aceptada entre ambos
+            req = ContactRequest.objects.filter(
+                (Q(sender=request.user) & Q(receiver=u)) |
+                (Q(sender=u) & Q(receiver=request.user))
+            ).first()
+            
+            if req:
+                if req.status == 'accepted':
+                    u.contact_status = 'accepted'
+                elif req.status == 'pending':
+                    if req.sender == request.user:
+                        u.contact_status = 'pending_sent'     # Yo le envié
+                    else:
+                        u.contact_status = 'pending_received' # Él me envió (Debo Aceptar)
+            else:
+                u.contact_status = 'none' # No hay relación previa
+                
+            users_list.append(u)
+
+    context = {
+        'query': query,
+        'boards': boards,
+        'cards': cards,
+        'users': users_list, # Enviamos la lista limpia
+    }
+    return render(request, 'boards/search.html', context)

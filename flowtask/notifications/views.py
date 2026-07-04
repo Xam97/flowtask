@@ -1,15 +1,15 @@
+# notifications/views.py
+from django.shortcuts import get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_http_methods
-
 from .models import Notification
 from .services import _notification_payload
+from contacts.models import ContactRequest
 
 
 def _serialize_notification(notification):
     return _notification_payload(notification)
-
 
 @login_required
 @require_http_methods(["GET"])
@@ -76,15 +76,15 @@ def unread_count(request):
 
 @login_required
 @require_http_methods(["POST"])
-def mark_read(request, notification_id=None):
-    if notification_id:
-        notification = get_object_or_404(Notification, pk=notification_id, user=request.user)
-        notification.is_read = True
-        notification.save(update_fields=['is_read'])
-    else:
-        Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
-    unread = Notification.objects.filter(user=request.user, is_read=False).count()
-    return JsonResponse({'success': True, 'unread_count': unread})
+def mark_read(request, notification_id):
+    """
+    Marca una notificación como leída
+    """
+    # CAMBIO: recipient → user
+    notification = get_object_or_404(Notification, id=notification_id, user=request.user)
+    notification.is_read = True
+    notification.save(update_fields=['is_read'])
+    return JsonResponse({'success': True})
 
 
 @login_required
@@ -98,7 +98,17 @@ def mark_all_read(request):
 @require_http_methods(["DELETE", "POST"])
 def delete_notification(request, notification_id):
     notification = get_object_or_404(Notification, pk=notification_id, user=request.user)
+    if notification.type == 'contact_request' and notification.contact_request_id:
+        contact_req = ContactRequest.objects.filter(id=notification.contact_request_id).first()
+        
+        if contact_req and contact_req.status == 'pending':
+            return JsonResponse({
+                'success': False,
+                'error': 'No puedes eliminar esta notificación sin antes haber dado una respuesta de aceptación o de rechazo.'
+            }, status=400)
+            
     notification.delete()
+    
     unread = Notification.objects.filter(user=request.user, is_read=False).count()
     return JsonResponse({'success': True, 'unread_count': unread})
 

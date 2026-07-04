@@ -98,12 +98,12 @@
     {% endif %}
 
     {% if member_boards %}
-    <div class="boards-section">
+    <div class="boards-section" id="collaborationsSection">
         <div class="section-header">
             <h2><i class="fas fa-users me-1"></i> Colaboraciones</h2>
-            <span class="count-badge">{{ member_boards|length }}</span>
+            <span class="count-badge" id="collaborationsCountBadge">{{ member_boards|length }}</span>
         </div>
-        <div class="boards-grid">
+        <div class="boards-grid" id="collaborationsGrid">
             {% for board in member_boards %}
             <div class="board-card" data-board-id="{{ board.id }}" data-board-name="{{ board.name }}">
                 <div class="board-card-header">

@@ -11,6 +11,7 @@
         setupBoardCards();
         trackCurrentBoard();
         setupRecentBoardClicks();
+        initLiveMembershipUpdates();
     });
 
     function initSidebar() {
@@ -179,5 +180,79 @@
         } catch (error) {
             FlowTaskHelpers.showToast('Error al crear tablero', 'error');
         }
+    }
+    // ================= ACTUALIZACIÓN EN VIVO AL SER AGREGADO A UN TABLERO =================
+
+    function initLiveMembershipUpdates() {
+        const dashboard = document.querySelector('.dashboard-container');
+        if (!dashboard || !window.FlowTaskWebSocket) return;
+
+        FlowTaskWebSocket.on('onNotification', (data) => {
+            if (data.type === 'member_added' && data.board_id) {
+                handleAddedToBoard(data.board_id);
+            }
+        });
+    }
+
+    async function handleAddedToBoard(boardId) {
+        // Evitamos duplicar la card si por algún motivo ya está en el DOM
+        if (document.querySelector(`.board-card[data-board-id="${boardId}"]`)) return;
+
+        try {
+            const response = await fetch(`/boards/api/board-summary/${boardId}/`, { credentials: 'same-origin' });
+            const data = await response.json();
+            if (!data.success) return;
+
+            insertCollaborationBoardCard(data.board);
+            setupBoardCards(); // re-engancha el click handler para la card nueva
+            FlowTaskHelpers.showToast(`Te agregaron al tablero "${data.board.name}"`, 'success');
+        } catch (error) {
+            console.error('Error cargando resumen del tablero nuevo:', error);
+        }
+    }
+
+    function insertCollaborationBoardCard(board) {
+        let grid = document.getElementById('collaborationsGrid');
+        let badge = document.getElementById('collaborationsCountBadge');
+
+        if (!grid) {
+            const section = document.createElement('div');
+            section.className = 'boards-section';
+            section.id = 'collaborationsSection';
+            section.innerHTML = `
+                <div class="section-header">
+                    <h2><i class="fas fa-users me-1"></i> Colaboraciones</h2>
+                    <span class="count-badge" id="collaborationsCountBadge">0</span>
+                </div>
+                <div class="boards-grid" id="collaborationsGrid"></div>
+            `;
+            document.querySelector('.dashboard-container').appendChild(section);
+            grid = document.getElementById('collaborationsGrid');
+            badge = document.getElementById('collaborationsCountBadge');
+        }
+
+        const hueBase = 300 + ((board.id * 17) % 60);
+        const cardHTML = `
+            <div class="board-card" data-board-id="${board.id}" data-board-name="${FlowTaskHelpers.escapeHtml(board.name)}">
+                <div class="board-card-header">
+                    <div class="board-gradient" style="background: linear-gradient(135deg, hsl(${hueBase},65%,55%) 0%, hsl(${hueBase + 30},55%,45%) 100%);"></div>
+                    <span class="board-icon"><i class="fas fa-users"></i></span>
+                </div>
+                <div class="board-card-body">
+                    <h3>${FlowTaskHelpers.escapeHtml(board.name)}</h3>
+                    <p>${FlowTaskHelpers.escapeHtml(board.description || 'Sin descripción')}</p>
+                    <div class="board-stats">
+                        <span><i class="fas fa-list"></i> ${board.lists_count} listas</span>
+                        <span><i class="fas fa-tasks"></i> ${board.cards_count} tareas</span>
+                    </div>
+                </div>
+                <div class="board-card-footer">
+                    <a href="/boards/${board.id}/" class="btn btn-sm btn-outline-primary board-open-link">Abrir</a>
+                </div>
+            </div>
+        `;
+
+        grid.insertAdjacentHTML('afterbegin', cardHTML);
+        if (badge) badge.textContent = grid.querySelectorAll('.board-card').length;
     }
 })();

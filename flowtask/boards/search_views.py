@@ -1,13 +1,16 @@
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
+from django.contrib.auth.models import User
 from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
-from django.views.decorators.http import require_GET, require_http_methods
+from django.views.decorators.http import require_GET, require_http_methods, require_POST
 from django.views.decorators.csrf import csrf_protect
 import json
 import re
 
+from contacts.models import ContactRequest
+from contacts.serializers import UserSearchSerializer
 from boards.models import Board, Card, Label, CardLabel
 from boards.utils import get_user_boards, get_accessible_board_ids, user_can_access_board
 from boards.permissions import user_has_permission, get_user_permissions
@@ -41,6 +44,7 @@ def search_view(request):
 
     boards = []
     cards = []
+    users_list = []
 
     if query and len(query) >= 2:
         boards = Board.objects.filter(
@@ -56,10 +60,22 @@ def search_view(request):
             Q(title__icontains=query) | Q(description__icontains=query)
         ).select_related('list', 'list__board', 'assigned_to')[:20]
 
+        
+        raw_users = User.objects.filter(
+            (Q(username__icontains=query) | 
+             Q(first_name__icontains=query) | 
+             Q(last_name__icontains=query) | 
+             Q(email__icontains=query)) &
+            ~Q(id=request.user.id)
+        )[:10]
+
+        users_list = UserSearchSerializer(raw_users, many=True, context={'request': request}).data
+
     return render(request, 'search/results.html', {
         'query': query,
         'boards': boards,
         'cards': cards,
+        'users': users_list,
     })
 
 
@@ -447,3 +463,29 @@ def toggle_card_label(request, card_id, label_id):
         attached = True
 
     return JsonResponse({'success': True, 'attached': attached})
+
+
+@login_required
+@require_GET
+def contacts_page(request):
+    """Página de gestión de contactos: lista mis contactos aceptados."""
+    accepted_relations = ContactRequest.objects.filter(
+        Q(status='accepted') & (Q(sender=request.user) | Q(receiver=request.user))
+    )
+
+    contact_ids = []
+    for rel in accepted_relations:
+        contact_ids.append(rel.receiver_id if rel.sender_id == request.user.id else rel.sender_id)
+
+    contacts = User.objects.filter(id__in=contact_ids).order_by('username')
+    contacts_data = UserSearchSerializer(contacts, many=True, context={'request': request}).data
+
+    pending_received = ContactRequest.objects.filter(
+        receiver=request.user, status='pending'
+    ).select_related('sender').order_by('-created_at')
+
+    return render(request, 'contacts/contacts.html', {
+        'contacts': contacts_data,
+        'pending_received': pending_received,
+        'contacts_count': len(contacts_data),
+    })

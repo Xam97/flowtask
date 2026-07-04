@@ -19,6 +19,15 @@
     pointer-events: none;
 }
 
+.auth-container::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--accent-gradient);
+    opacity: 0.08;
+    pointer-events: none;
+}
+
 .auth-card {
     background: var(--bg-secondary);
     border: 1px solid var(--border-light);

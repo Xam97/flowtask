@@ -289,6 +289,63 @@ body.auth-page .navbar { background: transparent; box-shadow: none; border: none
     font-size: 0.8125rem;
 }
 
+/* Nuevos añadidos para la sección de Usuarios en el Buscador */
+
+/* Botones pequeños de acción rápida (Añadir / Aceptar) */
+.search-result-item .btn-sm {
+    padding: 0.25rem 0.625rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border-radius: var(--radius-sm);
+    border: none;
+    cursor: pointer;
+    transition: background var(--transition), transform var(--transition);
+}
+
+.search-result-item .btn-primary {
+    background: var(--accent);
+    color: #ffffff;
+}
+.search-result-item .btn-primary:hover {
+    background: var(--accent-hover, #0056b3);
+    transform: scale(1.02);
+}
+
+.search-result-item .btn-success {
+    background: var(--accent-green, #00c875);
+    color: #ffffff;
+}
+.search-result-item .btn-success:hover {
+    background: #00a862;
+    transform: scale(1.02);
+}
+
+/* Insignias de estado (Enviada / Contacto) */
+.search-result-item .badge {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.7rem;
+    font-weight: 500;
+    border-radius: var(--radius-sm);
+    display: inline-block;
+}
+
+.search-result-item .bg-warning {
+    background: rgba(255, 193, 7, 0.15) !important;
+    color: #ffc107 !important;
+}
+
+.search-result-item .bg-success {
+    background: rgba(0, 200, 117, 0.15) !important;
+    color: var(--accent-green) !important;
+}
+
+/* Contenedor dinámico del botón para que no se herede el comportamiento de enlace */
+.user-action-btn {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
 /* Navbar actions */
 .navbar-actions {
     display: flex;
@@ -738,6 +795,7 @@ body.auth-page .navbar { background: transparent; box-shadow: none; border: none
 .nav-item .nav-icon-boards { background: linear-gradient(135deg, rgba(0,115,234,0.2), rgba(0,115,234,0.1)); color: var(--accent); }
 .nav-item .nav-icon-calendar { background: linear-gradient(135deg, rgba(253,171,61,0.2), rgba(253,171,61,0.1)); color: var(--accent-orange); }
 .nav-item .nav-icon-activity { background: linear-gradient(135deg, rgba(162,93,220,0.2), rgba(162,93,220,0.1)); color: var(--accent-purple); }
+.nav-item .nav-icon-contacts { background: linear-gradient(135deg, rgba(0,200,117,0.2), rgba(0,200,117,0.1)); color: var(--accent-green); }
 .nav-item .nav-icon-labels { background: linear-gradient(135deg, rgba(0,200,117,0.2), rgba(0,200,117,0.1)); color: var(--accent-green); }
 .nav-item .nav-icon-panel { background: linear-gradient(135deg, rgba(0,134,192,0.2), rgba(0,134,192,0.1)); color: var(--accent-cyan); }
 .nav-item .nav-icon-search { background: linear-gradient(135deg, rgba(255,100,46,0.2), rgba(255,100,46,0.1)); color: var(--accent-pink); }
@@ -1328,4 +1386,55 @@ body.auth-page .navbar { background: transparent; box-shadow: none; border: none
     .navbar-brand span,
     .user-dropdown span { display: none; }
     .main-content { padding: 0.75rem; }
+}
+
+/* Autocompletado de invitación a tablero */
+.invite-suggestions {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    z-index: 1100;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.invite-suggestions.show { display: block; }
+
+.invite-suggestion-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+}
+
+.invite-suggestion-item:hover { background: var(--bg-hover); }
+
+.invite-suggestion-avatar {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: rgba(87,155,252,0.15);
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.invite-suggestion-item strong { display: block; font-size: 0.8125rem; }
+.invite-suggestion-item small { color: var(--text-muted); font-size: 0.7rem; }
+
+.invite-suggestion-empty {
+    padding: 0.5rem 0.75rem;
+    color: var(--text-muted);
+    font-size: 0.8125rem;
 }
