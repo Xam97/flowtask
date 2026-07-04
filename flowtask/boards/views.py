@@ -385,6 +385,9 @@ def update_card_position(request):
     Actualiza la posición de una tarjeta (para Drag & Drop) e inyecta alertas en cambios de lista
     """
     import json
+    from channels.layers import get_channel_layer
+    from asgiref.sync import async_to_sync
+
     data = json.loads(request.body)
     
     card_id = data.get('card_id')
@@ -412,17 +415,31 @@ def update_card_position(request):
 
     card.save()
     
-    # NOTIFICACIÓN: Tarea movida (notificar al asignado si no fue él quien la movió)
-    if cambio_de_lista and card.assigned_to and card.assigned_to != request.user:
-        crear_notificacion(
-            recipient=card.assigned_to,
-            sender=request.user,
-            notification_type='task_moved',
-            message=f"{request.user.username} movió tu tarea '{card.title}' a la columna '{card.list.name}'",
-            board_id=board.id,
-            card_id=card.id
-        )
+    # NOTIFICACIÓN: Tarjeta movida a otra lista (se notifica a los miembros del tablero)
+    if moved:
         notify_card_moved(board, card, request.user, old_list_name)
+
+    # TRANSMISIÓN EN VIVO: Igual que en create_card, avisamos por WebSocket al
+    # resto de las pestañas abiertas en este tablero para que reflejen el
+    # movimiento sin necesidad de refrescar la página.
+    try:
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f'board_{board.id}',
+            {
+                'type': 'card_moved',
+                'data': {
+                    'card_id': card.id,
+                    'list_id': card.list.id,
+                    'old_list_id': old_list_id,
+                    'position': float(card.position),
+                    'moved_by': request.user.username,
+                    'card_title': card.title,
+                }
+            }
+        )
+    except Exception as e:
+        print(f"Error transmitiendo movimiento de tarjeta por WebSocket: {e}")
 
     return JsonResponse({'success': True})
 
